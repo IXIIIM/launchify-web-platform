@@ -1,109 +1,190 @@
 # Launchify Web Platform
 
-A platform designed to match entrepreneurs and investors efficiently by aligning areas of interest with expertise. It facilitates natural collaboration between entrepreneurs for mutual benefit and matches opportunities with capital for projects of all sizes.
+[Previous content remains...]
 
-## Features
+## Development Testing
 
-### Core Features
-- Subscription-based matching system
-- Secure authentication with email and phone verification
-- Comprehensive profile management for entrepreneurs and funders
-- Advanced matching algorithm based on industries and interests
-- Integrated verification system
-- Secure messaging and document sharing
-- Payment processing and escrow system
+### Development Dashboard (`/dev`)
 
-### Analytics & Reporting
-- User engagement metrics
-- Subscription performance tracking
-- Revenue analytics
-- Usage pattern analysis
-- Custom report generation
-- Real-time analytics dashboard
+The development dashboard provides tools for testing and debugging the platform's features:
 
-### Subscription Management
-- Tiered subscription system (Basic through Platinum)
-- Stripe payment integration
-- Automated billing
-- Usage tracking and limits
-- Feature access control
+1. **Notification Testing**
+   - Simulate subscription events (renewals, payment failures, trial endings)
+   - View sent notifications in real-time
+   - Test different user scenarios
 
-## Technology Stack
+2. **Email Preview**
+   - View all sent emails
+   - Preview email templates with actual data
+   - Test email formatting across different scenarios
 
-### Frontend
-- React with TypeScript
-- Tailwind CSS for styling
-- Redux Toolkit for state management
-- WebSocket for real-time features
+3. **Subscription Simulation**
+   - Test subscription tier changes
+   - Simulate payment events
+   - Preview subscription states
 
-### Backend
-- Node.js with Express
-- PostgreSQL with Prisma ORM
-- Redis for caching and rate limiting
-- AWS S3 for file storage
-- Stripe for payment processing
+### Running the Development Environment
 
-### Analytics & Monitoring
-- Custom analytics engine
-- Redis for usage tracking
-- Stripe Analytics integration
-- Real-time monitoring
-
-## Getting Started
-
-1. Clone the repository
-```bash
-git clone https://github.com/IXIIIM/launchify-web-platform.git
-```
-
-2. Install dependencies
-```bash
-npm install
-```
-
-3. Set up environment variables
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-4. Set up the database
-```bash
-npx prisma migrate dev
-```
-
-5. Start the development server
+1. Start the development server:
 ```bash
 npm run dev
 ```
 
-## Environment Variables
+2. Access the development dashboard:
+```
+http://localhost:3000/dev
+```
 
-Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis connection string
-- `AWS_ACCESS_KEY_ID`: AWS access key
-- `AWS_SECRET_ACCESS_KEY`: AWS secret key
-- `STRIPE_SECRET_KEY`: Stripe secret key
-- `STRIPE_WEBHOOK_SECRET`: Stripe webhook secret
-- `JWT_SECRET`: Secret for JWT tokens
+3. Set up test data:
+```bash
+# Create test user
+npm run seed:dev
 
-## Documentation
+# Or use the dashboard to configure test users
+```
 
-Extended documentation can be found in the `/docs` directory:
-- [API Documentation](/docs/api.md)
-- [Authentication Flow](/docs/auth.md)
-- [Subscription System](/docs/subscriptions.md)
-- [Analytics Features](/docs/analytics.md)
+### Testing Features
 
-## Contributing
+#### Testing Notifications
+1. Configure a test user in the dashboard
+2. Click "Simulate Event" buttons to trigger different notifications
+3. View sent notifications in the Notifications tab
+4. Check email previews in the Email Logs tab
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+#### Testing Subscription Changes
+1. Select a subscription tier for the test user
+2. Use the simulation controls to trigger tier changes
+3. Verify notification delivery
+4. Check email content for accuracy
 
-## License
+#### Testing Payment Scenarios
+1. Simulate successful/failed payments
+2. Verify payment failure notifications
+3. Test payment retry flows
+4. Check subscription status updates
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Environment Setup for Testing
+
+Add these variables to your `.env` file for testing:
+```env
+# Development settings
+NODE_ENV=development
+ENABLE_DEV_TOOLS=true
+
+# Test email settings (optional)
+TEST_EMAIL_RECIPIENT=your-email@example.com
+SUPPRESS_EMAILS=true  # Set to false to receive actual emails
+```
+
+### Available Test Commands
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test suites
+npm test notifications
+npm test subscriptions
+npm test payments
+
+# Generate test coverage report
+npm run test:coverage
+```
+
+### Debugging Tools
+
+1. **WebSocket Inspector**
+   - View real-time WebSocket messages
+   - Test notification delivery
+   - Monitor client-server communication
+
+2. **Email Inspector**
+   - Preview all email templates
+   - Test email rendering
+   - Verify email content
+
+3. **State Inspector**
+   - Monitor Redux state changes
+   - Track subscription status
+   - Debug user sessions
+
+### Test Data Management
+
+1. **Seeding Test Data**
+```bash
+# Seed basic test data
+npm run seed:dev
+
+# Reset test data
+npm run seed:reset
+```
+
+2. **Managing Test Users**
+   - Create test users via dashboard
+   - Modify user properties
+   - Reset user state
+
+3. **Test Scenarios**
+   - Pre-configured test scenarios
+   - Custom scenario builder
+   - Batch testing tools
+
+### API Testing Endpoints
+
+The following endpoints are available in development mode:
+
+```typescript
+// Notification testing
+POST /api/dev/simulate-event
+GET /api/dev/notifications
+
+// Email testing
+GET /api/dev/email-logs
+POST /api/dev/send-test-email
+
+// Subscription testing
+POST /api/dev/simulate-subscription
+GET /api/dev/subscription-status
+
+// Data management
+POST /api/dev/clear-data
+POST /api/dev/reset-state
+```
+
+### Best Practices for Testing
+
+1. **Isolated Testing**
+   - Use separate test database
+   - Reset state between tests
+   - Clean up test data
+
+2. **Comprehensive Testing**
+   - Test all subscription tiers
+   - Verify email templates
+   - Check error handling
+
+3. **Performance Testing**
+   - Monitor notification delivery
+   - Test bulk operations
+   - Verify real-time updates
+
+### Troubleshooting
+
+Common issues and solutions:
+
+1. **Notifications not showing**
+   - Check WebSocket connection
+   - Verify user configuration
+   - Check browser console
+
+2. **Emails not sending**
+   - Verify email configuration
+   - Check SUPPRESS_EMAILS setting
+   - Review email logs
+
+3. **Subscription issues**
+   - Check database connections
+   - Verify Stripe test keys
+   - Review transaction logs
+
+For more detailed instructions and scenarios, see the [Development Guide](docs/development-guide.md).
