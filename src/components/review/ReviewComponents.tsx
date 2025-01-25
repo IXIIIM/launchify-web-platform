@@ -1,0 +1,3 @@
+import React, { useState } from 'react';
+import { Star, Flag, ThumbsUp, AlertCircle } from 'lucide-react';
+...
