@@ -1,5 +1,124 @@
-model Spotlight {
-  id          String    @id @default(uuid())
-  userId      String
-  type        String    // BOOST, SUPER_BOOST
-...
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String           @id @default(uuid())
+  email                String           @unique
+  password             String
+  userType             String // 'entrepreneur' or 'funder'
+  subscriptionTier     String // Basic, Chrome, Bronze, Silver, Gold, Platinum
+  verificationLevel    String // None, BusinessPlan, UseCase, etc.
+  emailVerified        Boolean          @default(false)
+  phoneVerified        Boolean          @default(false)
+  verificationToken    String?
+  resetPasswordToken   String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  entrepreneurProfile  EntrepreneurProfile?
+  funderProfile       FunderProfile?
+  notifications       Notification[]
+  sentMessages        Message[]         @relation("SentMessages")
+  receivedMessages    Message[]         @relation("ReceivedMessages")
+  matches             Match[]           @relation("UserMatches")
+  matchedWith         Match[]           @relation("MatchedWithUsers")
+  subscription        Subscription?
+}
+
+model EntrepreneurProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  projectName         String
+  logo                String?
+  photo               String?
+  dbaNumber          String?
+  taxId              String?
+  companyWebsite     String?
+  linkedinUrl        String?
+  features           String[]
+  industries         String[]
+  yearsExperience    Int
+  businessType       String    // B2B or B2C
+  desiredInvestment  Json     // { amount: number, timeframe: string }
+  profitabilityTimeframe String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id])
+}
+
+model FunderProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  name                String
+  logo                String?
+  photo               String?
+  taxId               String?
+  companyWebsite      String?
+  linkedinUrl         String?
+  availableFunds      Float
+  areasOfInterest     String[]
+  yearsExperience     Int
+  investmentPreferences Json    // { timeframe: string, commitmentLength: string }
+  certifications      String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id])
+}
+
+model Match {
+  id            String   @id @default(uuid())
+  userId        String
+  matchedWithId String
+  status        String   // pending, accepted, rejected
+  compatibility Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  messages      Message[]
+  user          User     @relation("UserMatches", fields: [userId], references: [id])
+  matchedWith   User     @relation("MatchedWithUsers", fields: [matchedWithId], references: [id])
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  matchId     String
+  senderId    String
+  receiverId  String
+  content     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  match       Match    @relation(fields: [matchId], references: [id])
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // match, message, system
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Subscription {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  tier             String
+  status           String   // active, canceled, past_due
+  stripeId         String?
+  currentPeriodEnd DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id])
+}
