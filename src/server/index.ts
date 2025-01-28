@@ -21,9 +21,43 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Root route
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    name: 'Launchify API',
+    version: '1.0.0',
+    description: 'API server for the Launchify platform',
+    endpoints: {
+      '/': 'This documentation',
+      '/health': 'Server health status',
+      '/api/auth': 'Authentication endpoints',
+      '/api/users': 'User management',
+      '/api/matching': 'Match finding and management',
+      '/api/messages': 'Messaging system',
+      '/api/subscriptions': 'Subscription management'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    services: {
+      api: 'running',
+      database: 'connected',
+      websocket: 'initialized'
+    }
+  });
+});
+
+// 404 handler
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.path}`
+  });
 });
 
 // Global error handling
@@ -39,6 +73,7 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`API Documentation: http://localhost:${PORT}/`);
 });
 
 export default server;
