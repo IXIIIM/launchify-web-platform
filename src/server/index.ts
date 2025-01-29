@@ -46,8 +46,7 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     services: {
       api: 'running',
-      database: 'connected',
-      websocket: 'initialized'
+      database: 'connected'
     }
   });
 });
@@ -68,12 +67,34 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+// Handle shutdown gracefully
+const gracefulShutdown = async () => {
+  console.log('Received shutdown signal...');
+  
+  try {
+    // Disconnect from database
+    await prisma.$disconnect();
+    
+    // Close HTTP server
+    server.close(() => {
+      console.log('Server shut down successfully');
+      process.exit(0);
+    });
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exit(1);
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`API Documentation: http://localhost:${PORT}/`);
 });
 
 export default server;
