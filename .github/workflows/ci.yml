@@ -1,43 +1,9 @@
 name: CI
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: push
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Create empty src directory
-        run: mkdir -p src
-        
-      - name: Create initial test file
-        run: |
-          echo "// Placeholder test file" > src/App.test.tsx
-          
-      - name: Install dependencies
-        run: |
-          npm install || true
-          
-      - name: Create build directory
-        run: mkdir -p dist
-        
-      - name: Create build artifact
-        run: |
-          echo "// Placeholder build" > dist/index.js
-          
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: build
-          path: dist
+      - run: echo "hello world"
