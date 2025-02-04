@@ -1,54 +1,45 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import Dashboard from './pages/Dashboard';
 
-// Pages
+// Placeholder Pages
 const Home = () => (
-  <div>
-    <h1>Welcome to Launchify</h1>
+  <div className="p-6">
+    <h1 className="text-3xl font-bold mb-4">Welcome to Launchify</h1>
     <p>Connecting Entrepreneurs and Investors</p>
   </div>
-)
-
-const Dashboard = () => (
-  <div>
-    <h1>Dashboard</h1>
-    <p>Your investment and entrepreneurship overview</p>
-  </div>
-)
-
-const MatchingPage = () => (
-  <div>
-    <h1>Find Matches</h1>
-    <p>Discover potential investors or entrepreneurs</p>
-  </div>
-)
+);
 
 function App() {
   return (
     <Router>
-      <div>
+      <div className="min-h-screen bg-gray-100">
         <nav className="p-4 bg-blue-600 text-white">
-          <ul className="flex space-x-4">
-            <li><Link to="/">Home</Link></li>
-            <li><Link to="/dashboard">Dashboard</Link></li>
-            <li><Link to="/matching">Matching</Link></li>
-            <li><Link to="/chat">Chat</Link></li>
-            <li><Link to="/subscription">Subscription</Link></li>
-            <li><Link to="/settings">Settings</Link></li>
-          </ul>
+          <div className="max-w-7xl mx-auto">
+            <ul className="flex space-x-4">
+              <li><Link to="/" className="hover:text-blue-200">Home</Link></li>
+              <li><Link to="/dashboard" className="hover:text-blue-200">Dashboard</Link></li>
+              <li><Link to="/matching" className="hover:text-blue-200">Matching</Link></li>
+              <li><Link to="/chat" className="hover:text-blue-200">Chat</Link></li>
+              <li><Link to="/subscription" className="hover:text-blue-200">Subscription</Link></li>
+              <li><Link to="/settings" className="hover:text-blue-200">Settings</Link></li>
+            </ul>
+          </div>
         </nav>
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/matching" element={<MatchingPage />} />
-          <Route path="/chat" element={<div>Chat System</div>} />
-          <Route path="/subscription" element={<div>Subscription Plans</div>} />
-          <Route path="/settings" element={<div>Settings</div>} />
-        </Routes>
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/matching" element={<div>Matching System</div>} />
+            <Route path="/chat" element={<div>Chat System</div>} />
+            <Route path="/subscription" element={<div>Subscription Plans</div>} />
+            <Route path="/settings" element={<div>Settings</div>} />
+          </Routes>
+        </main>
       </div>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;
