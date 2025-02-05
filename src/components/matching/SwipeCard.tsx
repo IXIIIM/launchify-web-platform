@@ -16,10 +16,6 @@ interface SwipeCardProps {
 }
 
 const SwipeCard: React.FC<SwipeCardProps> = ({ match, index, onSwipe, totalCards }) => {
-  const x = motion.useMotionValue(0);
-  const rotate = motion.useTransform(x, [-200, 200], [-25, 25]);
-  const opacity = motion.useTransform(x, [-200, 0, 200], [0.5, 1, 0.5]);
-
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (Math.abs(info.offset.x) > 100) {
       onSwipe(info.offset.x > 0 ? 'right' : 'left');
@@ -28,21 +24,22 @@ const SwipeCard: React.FC<SwipeCardProps> = ({ match, index, onSwipe, totalCards
 
   return (
     <motion.div
+      className="absolute w-full h-full"
       style={{
-        x,
-        rotate,
-        opacity,
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
         zIndex: totalCards - index,
       }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       onDragEnd={handleDragEnd}
-      className="touch-none"
+      whileDrag={{ scale: 1.05 }}
+      animate={{
+        scale: 1,
+        opacity: 1,
+        rotateZ: 0,
+      }}
     >
       <div className="w-full h-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        {/* Profile Image */}
         <div className="relative h-2/3">
           <img
             src={match.user.photo}
@@ -63,32 +60,27 @@ const SwipeCard: React.FC<SwipeCardProps> = ({ match, index, onSwipe, totalCards
           </div>
         </div>
 
+        {/* Profile Info */}
         <div className="p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold mb-2">Why you might match</h3>
-            <ul className="space-y-2">
-              {match.matchReason.map((reason, index) => (
-                <li key={index} className="flex items-center text-sm text-gray-600">
-                  <Star className="w-4 h-4 text-yellow-400 mr-2" />
-                  {reason}
-                </li>
-              ))}
-            </ul>
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="flex items-center text-sm text-gray-500">
+              <Briefcase className="w-4 h-4 mr-1" />
+              {match.user.yearsExperience} years experience
+            </div>
+            <div className="flex items-center text-sm text-gray-500">
+              <Users className="w-4 h-4 mr-1" />
+              {match.user.type}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center">
-              <Briefcase className="w-4 h-4 mr-2 text-gray-400" />
-              <span className="text-gray-600">
-                {match.user.yearsExperience} years experience
-              </span>
-            </div>
-            <div className="flex items-center">
-              <Users className="w-4 h-4 mr-2 text-gray-400" />
-              <span className="text-gray-600 capitalize">
-                {match.user.type}
-              </span>
-            </div>
+          {/* Match Reasons */}
+          <div className="space-y-2">
+            {match.matchReason.map((reason, index) => (
+              <div key={index} className="flex items-center text-sm text-gray-600">
+                <Star className="w-4 h-4 text-yellow-400 mr-2" />
+                {reason}
+              </div>
+            ))}
           </div>
         </div>
       </div>
