@@ -1,36 +1,37 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 model User {
-  id                   String           @id @default(uuid())
-  email                String           @unique
-  password             String
-  userType             String // 'entrepreneur' or 'funder'
-  subscriptionTier     String // Basic, Chrome, Bronze, Silver, Gold, Platinum
-  verificationLevel    String // None, BusinessPlan, UseCase, etc.
-  emailVerified        Boolean          @default(false)
-  phoneVerified        Boolean          @default(false)
-  verificationToken    String?
-  resetPasswordToken   String?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-  entrepreneurProfile  EntrepreneurProfile?
-  funderProfile       FunderProfile?
-  notifications       Notification[]
-  sentMessages        Message[]         @relation("SentMessages")
-  receivedMessages    Message[]         @relation("ReceivedMessages")
-  matches             Match[]           @relation("UserMatches")
-  matchedWith         Match[]           @relation("MatchedWithUsers")
-  subscription        Subscription?
+  id                 String            @id @default(uuid())
+  email              String            @unique
+  password           String
+  userType           String            // 'entrepreneur' or 'funder'
+  subscriptionTier   String            // Basic, Chrome, Bronze, Silver, Gold, Platinum
+  verificationLevel  String            // None, BusinessPlan, UseCase, etc.
+  emailVerified      Boolean           @default(false)
+  phoneVerified      Boolean           @default(false)
+  verificationToken  String?
+  resetPasswordToken String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  
+  // Profile Relations
+  entrepreneurProfile EntrepreneurProfile?
+  funderProfile      FunderProfile?
+  
+  // Other Relations
+  matches            Match[]           @relation("UserMatches")
+  matchedWith        Match[]           @relation("MatchedWithUsers")
+  sentMessages       Message[]         @relation("SentMessages")
+  receivedMessages   Message[]         @relation("ReceivedMessages")
+  subscriptions      Subscription[]
+  notifications      Notification[]
 }
 
 model EntrepreneurProfile {
@@ -51,7 +52,8 @@ model EntrepreneurProfile {
   profitabilityTimeframe String
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model FunderProfile {
@@ -70,7 +72,8 @@ model FunderProfile {
   certifications      String[]
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  user                User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Match {
@@ -81,23 +84,38 @@ model Match {
   compatibility Float
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  messages      Message[]
-  user          User     @relation("UserMatches", fields: [userId], references: [id])
-  matchedWith   User     @relation("MatchedWithUsers", fields: [matchedWithId], references: [id])
+
+  user        User     @relation("UserMatches", fields: [userId], references: [id])
+  matchedWith User     @relation("MatchedWithUsers", fields: [matchedWithId], references: [id])
+  messages    Message[]
 }
 
 model Message {
-  id          String   @id @default(uuid())
-  matchId     String
-  senderId    String
-  receiverId  String
-  content     String
-  read        Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  match       Match    @relation(fields: [matchId], references: [id])
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  id             String   @id @default(uuid())
+  matchId        String
+  senderId       String
+  receiverId     String
+  content        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  match     Match    @relation(fields: [matchId], references: [id])
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Subscription {
+  id           String   @id @default(uuid())
+  userId       String
+  tier         String
+  status       String   // active, canceled, past_due
+  stripeId     String?
+  currentPeriodEnd DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Notification {
@@ -108,17 +126,17 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
-model Subscription {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  tier             String
-  status           String   // active, canceled, past_due
-  stripeId         String?
-  currentPeriodEnd DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id])
+model VerificationRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // BusinessPlan, UseCase, etc.
+  status      String   // pending, approved, rejected
+  documents   Json[]   // Array of document URLs
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
