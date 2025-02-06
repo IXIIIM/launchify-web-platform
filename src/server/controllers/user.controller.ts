@@ -1,26 +1,3 @@
-import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { z } from 'zod';
-import { ValidationError, NotFoundError } from '../middleware/error';
-import { StorageService } from '../../services/storage/StorageService';
-import { UsageService } from '../../services/usage/UsageService';
-
-const prisma = new PrismaClient();
-const storageService = new StorageService();
-const usageService = new UsageService();
-
-interface AuthRequest extends Request {
-  user: any;
-}
-
-// Validation schemas
-const entrepreneurProfileSchema = z.object({
-  projectName: z.string().min(2),
-  logo: z.string().url().optional(),
-  photo: z.string().url().optional(),
-  dbaNumber: z.string().optional(),
-  taxId: z.string().optional(),
-  companyWebsite: z.string().url().optional(),
   linkedinUrl: z.string().url().optional(),
   features: z.array(z.string()).min(1).max(5),
   industries: z.array(z.string()).min(1),
@@ -35,9 +12,9 @@ const entrepreneurProfileSchema = z.object({
 
 const funderProfileSchema = z.object({
   name: z.string().min(2),
-  logo: z.string().url().optional(),
-  photo: z.string().url().optional(),
-  taxId: z.string().optional(),
+  logo: z.string().optional(),
+  photo: z.string().optional(),
+  taxId: z.string(),
   companyWebsite: z.string().url().optional(),
   linkedinUrl: z.string().url().optional(),
   availableFunds: z.number().min(0),
@@ -75,8 +52,8 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     }
 
     // Track profile view if viewing another user's profile
-    if (req.params.userId && req.params.userId !== req.user.id) {
-      await usageService.trackProfileView(req.params.userId);
+    if (req.query.userId && req.query.userId !== req.user.id) {
+      await usageService.trackProfileView(req.query.userId as string);
     }
 
     res.json({
@@ -87,6 +64,8 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       userType: user.userType,
       subscriptionTier: user.subscriptionTier,
       verificationLevel: user.verificationLevel,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
       profile: user.userType === 'entrepreneur' 
         ? user.entrepreneurProfile 
         : user.funderProfile,
@@ -100,45 +79,64 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        entrepreneurProfile: true,
-        funderProfile: true
-      }
+      where: { id: req.user.id }
     });
 
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    // Validate based on user type
-    const validatedData = user.userType === 'entrepreneur'
+    // Validate profile data based on user type
+    const profileData = user.userType === 'entrepreneur'
       ? entrepreneurProfileSchema.parse(req.body)
       : funderProfileSchema.parse(req.body);
 
-    // Handle profile updates based on user type
+    // Handle file uploads if present
+    if (req.files) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      if (files.photo) {
+        profileData.photo = await storageService.replaceProfileImage(
+          files.photo[0].buffer,
+          user.id,
+          profileData.photo
+        );
+      }
+
+      if (files.logo) {
+        profileData.logo = await storageService.replaceCompanyLogo(
+          files.logo[0].buffer,
+          user.id,
+          profileData.logo
+        );
+      }
+    }
+
+    // Update profile based on user type
     if (user.userType === 'entrepreneur') {
       await prisma.entrepreneurProfile.upsert({
         where: { userId: user.id },
+        update: profileData,
         create: {
-          userId: user.id,
-          ...validatedData
-        },
-        update: validatedData
+          ...profileData,
+          userId: user.id
+        }
       });
     } else {
       await prisma.funderProfile.upsert({
         where: { userId: user.id },
+        update: profileData,
         create: {
-          userId: user.id,
-          ...validatedData
-        },
-        update: validatedData
+          ...profileData,
+          userId: user.id
+        }
       });
     }
 
-    // Return updated profile
-    await getProfile(req, res);
+    res.json({
+      message: 'Profile updated successfully',
+      profile: profileData
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new ValidationError('Validation failed', error.errors);
@@ -147,54 +145,59 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const uploadProfileImage = async (req: AuthRequest, res: Response) => {
+export const updateProfilePhoto = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       throw new ValidationError('Validation failed', [{
         field: 'photo',
-        message: 'Profile image is required'
+        message: 'Photo is required'
       }]);
     }
 
-    const imageUrl = await storageService.uploadProfileImage(
+    const photoUrl = await storageService.replaceProfileImage(
       req.file.buffer,
-      req.user.id
+      req.user.id,
+      req.user.profile?.photo
     );
 
-    // Update profile with new image URL
+    // Update profile photo based on user type
     if (req.user.userType === 'entrepreneur') {
       await prisma.entrepreneurProfile.update({
         where: { userId: req.user.id },
-        data: { photo: imageUrl }
+        data: { photo: photoUrl }
       });
     } else {
       await prisma.funderProfile.update({
         where: { userId: req.user.id },
-        data: { photo: imageUrl }
+        data: { photo: photoUrl }
       });
     }
 
-    res.json({ url: imageUrl });
+    res.json({
+      message: 'Profile photo updated successfully',
+      photoUrl
+    });
   } catch (error) {
     throw error;
   }
 };
 
-export const uploadCompanyLogo = async (req: AuthRequest, res: Response) => {
+export const updateCompanyLogo = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       throw new ValidationError('Validation failed', [{
         field: 'logo',
-        message: 'Company logo is required'
+        message: 'Logo is required'
       }]);
     }
 
-    const logoUrl = await storageService.uploadCompanyLogo(
+    const logoUrl = await storageService.replaceCompanyLogo(
       req.file.buffer,
-      req.user.id
+      req.user.id,
+      req.user.profile?.logo
     );
 
-    // Update profile with new logo URL
+    // Update company logo based on user type
     if (req.user.userType === 'entrepreneur') {
       await prisma.entrepreneurProfile.update({
         where: { userId: req.user.id },
@@ -207,16 +210,10 @@ export const uploadCompanyLogo = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.json({ url: logoUrl });
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const getProfileStats = async (req: AuthRequest, res: Response) => {
-  try {
-    const stats = await usageService.generateUsageReport(req.user.id);
-    res.json(stats);
+    res.json({
+      message: 'Company logo updated successfully',
+      logoUrl
+    });
   } catch (error) {
     throw error;
   }
@@ -224,46 +221,102 @@ export const getProfileStats = async (req: AuthRequest, res: Response) => {
 
 export const updateSettings = async (req: AuthRequest, res: Response) => {
   try {
-    const { 
-      emailNotifications,
-      pushNotifications,
-      theme,
-      language
-    } = req.body;
+    const settingsSchema = z.object({
+      emailNotifications: z.object({
+        matches: z.boolean(),
+        messages: z.boolean(),
+        updates: z.boolean()
+      }),
+      pushNotifications: z.object({
+        matches: z.boolean(),
+        messages: z.boolean(),
+        updates: z.boolean()
+      }),
+      theme: z.enum(['light', 'dark']),
+      language: z.string(),
+      timezone: z.string()
+    });
+
+    const validatedData = settingsSchema.parse(req.body);
 
     await prisma.userSettings.upsert({
       where: { userId: req.user.id },
+      update: validatedData,
       create: {
-        userId: req.user.id,
-        emailNotifications,
-        pushNotifications,
-        theme,
-        language
-      },
-      update: {
-        emailNotifications,
-        pushNotifications,
-        theme,
-        language
+        ...validatedData,
+        userId: req.user.id
       }
     });
 
-    res.json({ message: 'Settings updated successfully' });
+    res.json({
+      message: 'Settings updated successfully',
+      settings: validatedData
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('Validation failed', error.errors);
+    }
+    throw error;
+  }
+};
+
+export const getSettings = async (req: AuthRequest, res: Response) => {
+  try {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    res.json(settings || {
+      emailNotifications: { matches: true, messages: true, updates: true },
+      pushNotifications: { matches: true, messages: true, updates: false },
+      theme: 'light',
+      language: 'en',
+      timezone: 'UTC'
+    });
   } catch (error) {
     throw error;
   }
 };
 
-export const getLoginHistory = async (req: AuthRequest, res: Response) => {
+export const updatePassword = async (req: AuthRequest, res: Response) => {
   try {
-    const history = await prisma.loginHistory.findMany({
-      where: { userId: req.user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 10
+    const passwordSchema = z.object({
+      currentPassword: z.string(),
+      newPassword: z.string().min(8).regex(/^(?=.*[A-Za-z])(?=.*\d)/, {
+        message: 'Password must contain at least one letter and one number'
+      })
     });
 
-    res.json(history);
+    const validatedData = passwordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const validPassword = await bcrypt.compare(validatedData.currentPassword, user.password);
+    if (!validPassword) {
+      throw new ValidationError('Validation failed', [{
+        field: 'currentPassword',
+        message: 'Current password is incorrect'
+      }]);
+    }
+
+    const hashedPassword = await bcrypt.hash(validatedData.newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ message: 'Password updated successfully' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('Validation failed', error.errors);
+    }
     throw error;
   }
 };
