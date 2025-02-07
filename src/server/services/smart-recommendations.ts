@@ -1,0 +1,1 @@
+/* Content from smart-recommendations artifact */
