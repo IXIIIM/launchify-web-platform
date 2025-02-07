@@ -1,0 +1,1 @@
+/* Content from payment-interface artifact */
