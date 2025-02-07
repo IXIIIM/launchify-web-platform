@@ -1,0 +1,1 @@
+/* Content from recommendation-service artifact */
