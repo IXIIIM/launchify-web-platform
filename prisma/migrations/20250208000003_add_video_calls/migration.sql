@@ -1,0 +1,1 @@
+// [Content from video-call-schema artifact - migration section]
