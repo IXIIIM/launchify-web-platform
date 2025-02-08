@@ -1,0 +1,1 @@
+// [Content from chat-file-components artifact - FileUpload component]
