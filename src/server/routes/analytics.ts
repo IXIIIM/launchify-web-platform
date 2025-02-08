@@ -7,12 +7,17 @@ import {
 } from '../controllers/analytics.controller';
 import { authenticateToken } from '../middleware/auth';
 import { checkFeatureAccess } from '../middleware/usageLimit';
+import { cacheMiddleware, analyticsKey } from '../middleware/cache';
 
 const router = express.Router();
 
 // Platform-wide analytics (admin only)
 router.get('/platform',
   authenticateToken,
+  cacheMiddleware({
+    key: analyticsKey,
+    ttl: 300 // 5 minutes cache
+  }),
   getPlatformAnalytics
 );
 
@@ -20,6 +25,10 @@ router.get('/platform',
 router.get('/user', 
   authenticateToken, 
   checkFeatureAccess('canAccessAnalytics'),
+  cacheMiddleware({
+    key: (req) => `analytics:user:${req.user.id}:${req.query.timeframe || ''}`,
+    ttl: 300
+  }),
   getUserAnalytics
 );
 
