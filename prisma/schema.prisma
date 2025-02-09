@@ -1,3 +1,4 @@
+// Update to add versioning models
 model Document {
   id                String              @id @default(uuid())
   name              String
