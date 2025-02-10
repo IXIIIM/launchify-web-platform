@@ -1,0 +1,4 @@
+name: Security Tests
+
+on:
+  push:
