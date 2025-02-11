@@ -24,7 +24,6 @@ export class AccessLogService {
 
   async logAccess(event: AccessLogEvent): Promise<void> {
     try {
-      // Log to database
       await this.prisma.accessLog.create({
         data: {
           userId: event.userId,
@@ -38,7 +37,6 @@ export class AccessLogService {
         }
       });
 
-      // Send alert for suspicious activity
       if (!event.success && this.isSuspiciousActivity(event)) {
         await this.sendSecurityAlert(event);
       }
