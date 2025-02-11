@@ -1,17 +1,52 @@
-// Update DocumentEncryption model
-model DocumentEncryption {
-  id            String    @id @default(uuid())
-  documentId    String    @unique
-  keyId         String    // Reference to encryption key
-  iv            String    // Initialization vector
-  authTag       String    // Authentication tag
-  salt          String    // Salt for key derivation
-  algorithm     String    // Encryption algorithm used
-  lastRotation  DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  document      Document  @relation(fields: [documentId], references: [id])
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// ... [Rest of schema updates]
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Existing models with updates
+model User {
+  id                 String            @id @default(uuid())
+  email              String            @unique
+  password           String
+  userType          String            // 'entrepreneur' or 'funder'
+  subscriptionTier   String            // Basic, Chrome, Bronze, Silver, Gold, Platinum
+  verificationLevel  String            // None, BusinessPlan, UseCase, etc.
+  securityStatus     String            @default("ACTIVE") // ACTIVE, LOCKED, SUSPENDED
+  lastSecurityIncident DateTime?
+  emailVerified      Boolean           @default(false)
+  phoneVerified      Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  // Relations
+  entrepreneurProfile EntrepreneurProfile?
+  funderProfile      FunderProfile?
+  matches            Match[]           @relation("UserMatches")
+  matchedWith        Match[]           @relation("MatchedWithUsers")
+  messages           Message[]
+  verificationRequests VerificationRequest[]
+  profileBoosts      ProfileBoost[]
+  accessLogs         AccessLog[]
+  profileViews       ProfileView[]     @relation("ViewedProfiles")
+  viewedBy           ProfileView[]     @relation("Viewers")
+}
+
+// New models for access control and logging
+model AccessLog {
+  id          String    @id @default(uuid())
+  userId      String
+  action      String    // READ, WRITE, UPDATE, DELETE, etc.
+  resource    String    // profile, match, message, etc.
+  resourceId  String?
+  success     Boolean
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+}
+// Rest of the schema...
