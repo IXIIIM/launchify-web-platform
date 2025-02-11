@@ -19,7 +19,6 @@ module.exports = {
     }
   },
   rules: {
-    // Security-specific rules
     'security/detect-object-injection': 'error',
     'security/detect-non-literal-regexp': 'error',
     'security/detect-unsafe-regex': 'error',
@@ -30,22 +29,16 @@ module.exports = {
     'security/detect-no-csrf-before-method-override': 'error',
     'security/detect-possible-timing-attacks': 'error',
     'security/detect-pseudoRandomBytes': 'error',
-    
-    // TypeScript security rules
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/explicit-module-boundary-types': 'error',
     '@typescript-eslint/no-unsafe-assignment': 'error',
     '@typescript-eslint/no-unsafe-member-access': 'error',
     '@typescript-eslint/no-unsafe-return': 'error',
     '@typescript-eslint/no-unsafe-call': 'error',
-    
-    // React security rules
     'react/no-danger': 'error',
     'react/no-find-dom-node': 'error',
     'react/no-render-return-value': 'error',
     'react/no-unescaped-entities': 'error',
-    
-    // Best practices
     'no-eval': 'error',
     'no-implied-eval': 'error',
     'no-new-func': 'error',
