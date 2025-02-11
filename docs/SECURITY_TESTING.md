@@ -22,11 +22,6 @@ Add these dependencies to your package.json:
 }
 ```
 
-Install dependencies:
-```bash
-npm install
-```
-
 ## Required Scripts
 Add these scripts to your package.json:
 
@@ -110,68 +105,6 @@ src/
         └── AuditLogging.test.ts     # Audit logging tests
 ```
 
-## Adding New Security Tests
-
-### Test Template
-```typescript
-import { ServiceName } from '@/services/ServiceName';
-import { mock } from 'jest-mock-extended';
-
-describe('ServiceName', () => {
-  let service: ServiceName;
-  
-  beforeEach(() => {
-    service = new ServiceName();
-  });
-
-  describe('featureName', () => {
-    it('should handle security case', async () => {
-      // Arrange
-      const testData = 'test';
-
-      // Act
-      const result = await service.method(testData);
-
-      // Assert
-      expect(result).toBeDefined();
-    });
-  });
-});
-```
-
-### Best Practices
-1. Always mock external services (AWS, Redis, etc.)
-2. Test both success and failure cases
-3. Include security edge cases
-4. Clear test databases between runs
-5. Don't commit sensitive data in tests
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Test Database Connection Errors**
-   ```bash
-   # Start test database
-   docker-compose up -d test-db
-   ```
-
-2. **Redis Connection Issues**
-   ```bash
-   # Start Redis
-   docker-compose up -d redis
-   ```
-
-3. **AWS KMS Mocking Issues**
-   - Check mock implementation matches AWS SDK version
-   - Verify AWS credentials in environment
-
-### Support
-For issues:
-1. Check test logs: `npm run test:security -- --verbose`
-2. Run specific test: `npm run test:security -- -t "test name"`
-3. Debug with VS Code: Use launch.json configuration for Jest
-
 ## Maintenance
 
 ### Regular Tasks
@@ -185,10 +118,3 @@ For issues:
 2. Review Snyk vulnerability reports
 3. Monitor test coverage trends
 4. Track security-related issues
-
-## Contributing
-1. Create feature branch
-2. Add/update security tests
-3. Maintain 80% coverage minimum
-4. Follow ESLint security rules
-5. Request review from security team
