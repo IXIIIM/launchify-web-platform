@@ -1,0 +1,1 @@
+// Content of mobile-optimized Navigation.tsx as shown above
