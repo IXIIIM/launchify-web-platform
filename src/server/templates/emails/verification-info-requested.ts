@@ -34,10 +34,17 @@ export const verificationInfoRequestedTemplate = `
       margin-top: 20px;
     }
     .requirements {
-      background-color: #FFF3E0;
+      background-color: #fff3e0;
       padding: 15px;
       border-radius: 4px;
       margin: 20px 0;
+      border: 1px solid #FFE0B2;
+    }
+    .message {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 15px 0;
     }
     .footer {
       text-align: center;
@@ -45,12 +52,6 @@ export const verificationInfoRequestedTemplate = `
       padding-top: 20px;
       border-top: 1px solid #eee;
       color: #666;
-    }
-    .document-list {
-      background-color: #f5f5f5;
-      padding: 15px;
-      border-radius: 4px;
-      margin: 15px 0;
     }
   </style>
 </head>
@@ -62,10 +63,17 @@ export const verificationInfoRequestedTemplate = `
   <div class="content">
     <p>Hello {{name}},</p>
     
-    <p>Thank you for submitting your {{type}} verification request. Our review team has reviewed your submission and requires some additional information to complete the verification process.</p>
+    <p>Our verification team has reviewed your {{type}} verification request and needs some additional information to complete the process.</p>
+
+    {{#if message}}
+    <div class="message">
+      <strong>Message from the verification team:</strong>
+      <p>{{message}}</p>
+    </div>
+    {{/if}}
 
     <div class="requirements">
-      <h3>Additional Documents Required:</h3>
+      <h3>Required Documents:</h3>
       <ul>
         {{#each requiredDocuments}}
           <li>{{this}}</li>
@@ -73,32 +81,20 @@ export const verificationInfoRequestedTemplate = `
       </ul>
     </div>
 
-    {{#if message}}
-    <div class="document-list">
-      <strong>Reviewer Message:</strong>
-      <p>{{message}}</p>
-    </div>
-    {{/if}}
-
-    <p>Please provide the requested information through your dashboard:</p>
+    <p><strong>Important:</strong></p>
+    <ul>
+      <li>Please ensure all documents are clear and legible</li>
+      <li>Accepted formats: PDF, JPG, PNG</li>
+      <li>Maximum file size: 10MB per document</li>
+    </ul>
 
     <a href="{{uploadUrl}}" class="button">Upload Documents</a>
 
-    <p>Important Notes:</p>
-    <ul>
-      <li>All documents should be in PDF, JPG, or PNG format</li>
-      <li>Maximum file size is 10MB per document</li>
-      <li>Ensure all documents are clear and legible</li>
-      <li>Documents should be in English or include certified translations</li>
-    </ul>
+    <p>Your verification request will remain pending until we receive the requested information. If you have any questions, please don't hesitate to contact our support team.</p>
 
-    <p>Your verification request will remain pending until we receive and review the additional information. Once you've uploaded the requested documents, our team will prioritize reviewing your updated submission.</p>
-
-    <p>If you have any questions about the required information or need assistance, please don't hesitate to contact our support team.</p>
-  </div>
-
-  <div class="footer">
-    <p>Best regards,<br>The Launchify Team</p>
+    <div class="footer">
+      <p>Best regards,<br>The Launchify Team</p>
+    </div>
   </div>
 </body>
 </html>
