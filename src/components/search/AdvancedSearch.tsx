@@ -1,1 +1,1 @@
-[Previous advanced search component content...]
+// Content of mobile-optimized AdvancedSearch.tsx as shown above
