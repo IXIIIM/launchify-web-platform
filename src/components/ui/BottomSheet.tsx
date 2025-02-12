@@ -1,0 +1,1 @@
+// Content of BottomSheet.tsx as shown above
