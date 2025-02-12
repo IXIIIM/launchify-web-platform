@@ -2,7 +2,7 @@ export const verificationRejectedTemplate = `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Verification Request Rejected</title>
+  <title>Verification Request Update</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@ export const verificationRejectedTemplate = `
       padding: 20px;
     }
     .header {
-      background-color: #F44336;
+      background-color: #607D8B;
       color: white;
       padding: 20px;
       text-align: center;
@@ -33,17 +33,18 @@ export const verificationRejectedTemplate = `
       border-radius: 4px;
       margin-top: 20px;
     }
-    .reasons {
-      background-color: #FFEBEE;
+    .feedback {
+      background-color: #f5f5f5;
       padding: 15px;
       border-radius: 4px;
       margin: 20px 0;
     }
     .next-steps {
-      background-color: #f5f5f5;
+      background-color: #E3F2FD;
       padding: 15px;
       border-radius: 4px;
       margin: 20px 0;
+      border: 1px solid #BBDEFB;
     }
     .footer {
       text-align: center;
@@ -56,44 +57,45 @@ export const verificationRejectedTemplate = `
 </head>
 <body>
   <div class="header">
-    <h1>Verification Request Rejected</h1>
+    <h1>Verification Request Update</h1>
   </div>
 
   <div class="content">
     <p>Hello {{name}},</p>
     
-    <p>We regret to inform you that your {{type}} verification request has been rejected. Our review team has carefully evaluated your submission and determined that it does not meet our current verification requirements.</p>
+    <p>We have carefully reviewed your {{type}} verification request. Unfortunately, we are unable to approve it at this time.</p>
 
     {{#if notes}}
-    <div class="reasons">
-      <h3>Reason for Rejection:</h3>
+    <div class="feedback">
+      <strong>Feedback from our verification team:</strong>
       <p>{{notes}}</p>
     </div>
     {{/if}}
 
     <div class="next-steps">
       <h3>Next Steps:</h3>
-      <ol>
-        <li>Review our verification requirements and guidelines carefully</li>
-        <li>Ensure all submitted documents meet our specified format and content requirements</li>
-        <li>Address any specific issues mentioned in the rejection reason</li>
+      <ul>
+        <li>Review the feedback provided above</li>
+        <li>Make the necessary adjustments or gather additional documentation</li>
         <li>Submit a new verification request when ready</li>
-      </ol>
+      </ul>
     </div>
 
-    <p>You can submit a new verification request after addressing these issues:</p>
+    <p>Common reasons for verification rejection include:</p>
+    <ul>
+      <li>Incomplete or unclear documentation</li>
+      <li>Documents don't meet our verification requirements</li>
+      <li>Inconsistencies in provided information</li>
+      <li>Quality or resolution issues with submitted files</li>
+    </ul>
 
-    <a href="{{newRequestUrl}}" class="button">Submit New Request</a>
+    <a href="{{verificationGuideUrl}}" class="button">View Verification Guide</a>
 
-    <p>If you believe this rejection was made in error or need clarification about the requirements, please don't hesitate to contact our support team.</p>
+    <p>If you believe this decision was made in error or need clarification, please don't hesitate to contact our support team. We're here to help you succeed in getting verified.</p>
 
-    <p>You can view our complete verification guidelines and requirements here:</p>
-    
-    <a href="{{guidelinesUrl}}" class="button" style="background-color: #757575;">View Guidelines</a>
-  </div>
-
-  <div class="footer">
-    <p>Best regards,<br>The Launchify Team</p>
+    <div class="footer">
+      <p>Best regards,<br>The Launchify Team</p>
+    </div>
   </div>
 </body>
 </html>
