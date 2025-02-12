@@ -68,21 +68,19 @@ export const verificationApprovedTemplate = `
     </div>
 
     {{#if notes}}
-    <div style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 15px 0;">
       <strong>Reviewer Notes:</strong>
       <p>{{notes}}</p>
     </div>
     {{/if}}
 
-    <p>Visit your dashboard to see your updated profile and start leveraging your new verification status:</p>
+    <a href="{{profileUrl}}" class="button">View Your Profile</a>
 
-    <a href="{{dashboardUrl}}" class="button">View Dashboard</a>
+    <p>Thank you for helping maintain the quality and trust of our platform!</p>
 
-    <p>If you have any questions about your verification or need assistance, don't hesitate to contact our support team.</p>
-  </div>
-
-  <div class="footer">
-    <p>Best regards,<br>The Launchify Team</p>
+    <div class="footer">
+      <p>Best regards,<br>The Launchify Team</p>
+    </div>
   </div>
 </body>
 </html>
