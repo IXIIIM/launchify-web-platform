@@ -1,0 +1,1 @@
+// Content of mobile-optimized SearchResults.tsx as shown above
