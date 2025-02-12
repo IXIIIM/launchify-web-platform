@@ -1,0 +1,1 @@
+// Content of mobile-optimized MatchFeed.tsx as shown above
