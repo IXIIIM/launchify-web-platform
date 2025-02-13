@@ -1,3 +1,4 @@
+// This is your Prisma schema file
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -11,41 +12,165 @@ model User {
   id                 String            @id @default(uuid())
   email              String            @unique
   password           String
-  userType          String            // 'entrepreneur' or 'funder'
+  userType           String            // 'entrepreneur' or 'funder'
   subscriptionTier   String            // Basic, Chrome, Bronze, Silver, Gold, Platinum
   verificationLevel  String            // None, BusinessPlan, UseCase, etc.
-  securityStatus     String            @default("ACTIVE") // ACTIVE, LOCKED, SUSPENDED
-  lastSecurityIncident DateTime?
   emailVerified      Boolean           @default(false)
   phoneVerified      Boolean           @default(false)
+  verificationToken  String?
+  resetPasswordToken String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  stripeCustomerId   String?
 
-  // Relations
+  // Profile Relations
   entrepreneurProfile EntrepreneurProfile?
   funderProfile      FunderProfile?
+  
+  // Image Relations
+  images             Image[]
+  
+  // Other Relations
   matches            Match[]           @relation("UserMatches")
   matchedWith        Match[]           @relation("MatchedWithUsers")
-  messages           Message[]
-  verificationRequests VerificationRequest[]
-  profileBoosts      ProfileBoost[]
-  accessLogs         AccessLog[]
-  profileViews       ProfileView[]     @relation("ViewedProfiles")
-  viewedBy           ProfileView[]     @relation("Viewers")
+  sentMessages       Message[]         @relation("SentMessages")
+  receivedMessages   Message[]         @relation("ReceivedMessages")
+  subscriptions      Subscription[]
+  notifications      Notification[]
 }
 
-model AccessLog {
-  id          String    @id @default(uuid())
-  userId      String
-  action      String    // READ, WRITE, UPDATE, DELETE, etc.
-  resource    String    // profile, match, message, etc.
-  resourceId  String?
-  success     Boolean
-  reason      String?
-  metadata    Json?
-  createdAt   DateTime  @default(now())
+model Image {
+  id        String   @id @default(uuid())
+  userId    String
+  purpose   String   // profile, document, logo
+  filename  String
+  format    String   // jpeg, png, webp
+  width     Int
+  height    Int
+  size      Int      // in bytes
+  url       String
+  metadata  Json?    // Additional image metadata
+  variants  ImageVariant[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User      @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([purpose])
 }
 
-// Additional models...
+model ImageVariant {
+  id        String   @id @default(uuid())
+  imageId   String
+  purpose   String   // thumbnail, medium, large
+  filename  String
+  format    String
+  width     Int
+  height    Int
+  size      Int
+  url       String
+  createdAt DateTime @default(now())
+
+  image     Image    @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@index([imageId])
+}
+
+// Add the Image schema above to the existing models below
+
+model EntrepreneurProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  projectName         String
+  logo                String?
+  photo               String?
+  dbaNumber          String?
+  taxId              String?
+  companyWebsite     String?
+  linkedinUrl        String?
+  features           String[]
+  industries         String[]
+  yearsExperience    Int
+  businessType       String    // B2B or B2C
+  desiredInvestment  Json     // { amount: number, timeframe: string }
+  profitabilityTimeframe String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model FunderProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  name                String
+  logo                String?
+  photo               String?
+  taxId               String?
+  companyWebsite      String?
+  linkedinUrl         String?
+  availableFunds      Float
+  areasOfInterest     String[]
+  yearsExperience     Int
+  investmentPreferences Json    // { timeframe: string, commitmentLength: string }
+  certifications      String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Match {
+  id            String   @id @default(uuid())
+  userId        String
+  matchedWithId String
+  status        String   // pending, accepted, rejected
+  compatibility Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User     @relation("UserMatches", fields: [userId], references: [id])
+  matchedWith User     @relation("MatchedWithUsers", fields: [matchedWithId], references: [id])
+  messages    Message[]
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  matchId        String
+  senderId       String
+  receiverId     String
+  content        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  match     Match    @relation(fields: [matchId], references: [id])
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Subscription {
+  id           String   @id @default(uuid())
+  userId       String
+  tier         String
+  status       String   // active, canceled, past_due
+  stripeId     String?
+  currentPeriodEnd DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // match, message, system
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
