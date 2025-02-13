@@ -118,6 +118,89 @@ export const useChartOptimization = (
     optimizeData();
   }, [rawData, metric, config.dataPoints, fps]);
 
+  // Calculate optimal tick values
+  const calculateTicks = useMemo(() => () => {
+    if (!optimizedData.length) return [];
+
+    const values = optimizedData.map(item => item[metric]);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const tickCount = isMobile ? 4 : 6;
+    
+    // Calculate nice tick values
+    const range = max - min;
+    const roughStep = range / (tickCount - 1);
+    const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    const step = Math.ceil(roughStep / magnitude) * magnitude;
+    
+    // Generate tick values
+    const ticks = [];
+    let currentTick = Math.floor(min / magnitude) * magnitude;
+    
+    while (currentTick <= max && ticks.length < tickCount) {
+      ticks.push(Number(currentTick.toFixed(2)));
+      currentTick += step;
+    }
+
+    return ticks;
+  }, [optimizedData, metric, isMobile]);
+
+  // Format tooltip content
+  const formatTooltip = useMemo(() => (value: number, label: string): React.ReactNode => {
+    // Simple tooltip for low-performance devices
+    if (fps < 30) {
+      return `${label}: ${value}`;
+    }
+    
+    // Enhanced tooltip for high-performance devices
+    return (
+      <div className="bg-white p-2 rounded shadow-lg border">
+        <div className="font-semibold">{label}</div>
+        <div className="flex items-baseline space-x-1">
+          <span className="text-lg">{value}</span>
+          {fps >= 45 && (
+            <span className="text-xs text-gray-500">
+              {calculateGrowth(value, label)}
+            </span>
+          )}
+        </div>
+        {fps >= 45 && <div className="w-24 h-1 bg-gray-100 rounded-full mt-1">
+          <div 
+            className="h-full bg-blue-600 rounded-full" 
+            style={{ width: `${calculateProgress(value, label)}%` }}
+          />
+        </div>}
+      </div>
+    );
+  }, [fps]);
+
+  // Helper functions for enhanced tooltips
+  const calculateGrowth = (value: number, label: string): string => {
+    if (!optimizedData.length) return '';
+    
+    const previousValue = optimizedData
+      .slice(0, -1)
+      .find(item => item[metric] !== undefined)?.[metric] ?? value;
+    
+    const growth = ((value - previousValue) / previousValue) * 100;
+    return growth > 0 ? `+${growth.toFixed(1)}%` : `${growth.toFixed(1)}%`;
+  };
+
+  const calculateProgress = (value: number, label: string): number => {
+    if (!optimizedData.length) return 0;
+    
+    const values = optimizedData.map(item => item[metric]);
+    const max = Math.max(...values);
+    return (value / max) * 100;
+  };
+
+  // Animation control
+  const startAnimation = () => {
+    if (fps < 30) return; // Skip animation on low-end devices
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), config.animationDuration);
+  };
+
   return {
     optimizedData,
     config,
@@ -127,8 +210,8 @@ export const useChartOptimization = (
       supportsComplexTooltips: fps >= 30,
       isHighPerformance: fps >= 45
     },
-    calculateTicks: () => [], // Will be implemented in next part
-    formatTooltip: () => null, // Will be implemented in next part
-    startAnimation: () => {} // Will be implemented in next part
+    calculateTicks,
+    formatTooltip,
+    startAnimation
   };
 };
