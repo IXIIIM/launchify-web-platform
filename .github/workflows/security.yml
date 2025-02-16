@@ -1,0 +1,88 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Security audit
+      run: npm audit
+
+    - name: Run ESLint security rules
+      run: npx eslint . --config .eslintrc.js
+
+    - name: Run security tests
+      run: npm run test:security
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        JWT_SECRET: test-jwt-secret
+
+    - name: Run SAST Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        languages: javascript
+
+    - name: Run dependency vulnerability scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Check for credentials in code
+      uses: zricethezav/gitleaks-action@master
+
+    - name: Generate security report
+      if: always()
+      run: |
+        echo "# Security Scan Results" > security-report.md
+        echo "## Test Coverage" >> security-report.md
+        npm run test:security:coverage >> security-report.md
+        echo "## Dependency Audit" >> security-report.md
+        npm audit >> security-report.md
+
+    - name: Upload security report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: security-report.md

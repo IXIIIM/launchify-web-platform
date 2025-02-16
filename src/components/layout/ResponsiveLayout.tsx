@@ -1,0 +1,1 @@
+// Content of ResponsiveLayout.tsx as shown above

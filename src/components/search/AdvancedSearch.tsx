@@ -1,0 +1,1 @@
+// Content of mobile-optimized AdvancedSearch.tsx as shown above

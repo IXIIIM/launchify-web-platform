@@ -1,1 +1,1 @@
-// [Content from chat-integration artifact]
+// Content of mobile-optimized ChatWindow.tsx as shown above

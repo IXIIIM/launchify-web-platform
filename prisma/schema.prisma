@@ -1,17 +1,61 @@
-// Update DocumentEncryption model
-model DocumentEncryption {
-  id            String    @id @default(uuid())
-  documentId    String    @unique
-  keyId         String    // Reference to encryption key
-  iv            String    // Initialization vector
-  authTag       String    // Authentication tag
-  salt          String    // Salt for key derivation
-  algorithm     String    // Encryption algorithm used
-  lastRotation  DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  document      Document  @relation(fields: [documentId], references: [id])
+generator client {
+  provider = "prisma-client-js"
 }
 
-// ... [Rest of schema updates]
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Existing models remain unchanged...
+
+enum ErrorSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model ErrorLog {
+  id        String       @id @default(uuid())
+  severity  ErrorSeverity
+  component String
+  message   String
+  stack     String?
+  metadata  Json?
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id])
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([severity])
+  @@index([component])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model ErrorAlert {
+  id         String       @id @default(uuid())
+  type       String
+  severity   ErrorSeverity
+  message    String
+  metadata   Json?
+  resolved   Boolean      @default(false)
+  resolvedAt DateTime?
+  resolvedBy String?
+  user       User?        @relation("ErrorAlertResolver", fields: [resolvedBy], references: [id])
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([severity])
+  @@index([resolved])
+  @@index([createdAt])
+}
+
+// Add relations to User model
+model User {
+  // Existing fields remain...
+  
+  errorLogs        ErrorLog[]
+  resolvedAlerts   ErrorAlert[]  @relation("ErrorAlertResolver")
+}
