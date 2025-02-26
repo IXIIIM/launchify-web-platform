@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/search/AdvancedSearch.tsx
 
 import React, { useState } from 'react';
@@ -240,3 +241,6 @@ const industries = [
 ];
 
 export default AdvancedSearch;
+=======
+// Content of mobile-optimized AdvancedSearch.tsx as shown above
+>>>>>>> feature/security-implementation

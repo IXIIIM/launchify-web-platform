@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/hooks/useSearch.ts
 import { useState, useCallback } from 'react';
 import { useDebounce } from './useDebounce';
@@ -162,3 +163,6 @@ export function useDebounce<T>(value: T, delay: number): T {
 
   return debouncedValue;
 }
+=======
+[Previous useSearch hook content...]
+>>>>>>> feature/security-implementation

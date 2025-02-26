@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/security-alert.ts
+=======
+>>>>>>> feature/security-implementation
 export const securityAlertTemplate = `
 <!DOCTYPE html>
 <html>

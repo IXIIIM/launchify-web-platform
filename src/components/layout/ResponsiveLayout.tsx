@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/layout/ResponsiveLayout.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -163,3 +164,6 @@ export const withHeader = (
 };
 
 export default ResponsiveLayout;
+=======
+// Content of ResponsiveLayout.tsx as shown above
+>>>>>>> feature/security-implementation

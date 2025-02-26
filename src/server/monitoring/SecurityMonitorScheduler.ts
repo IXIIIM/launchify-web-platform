@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/monitoring/SecurityMonitorScheduler.ts
+=======
+>>>>>>> feature/security-implementation
 import { CronJob } from 'cron';
 import { SecurityMonitor } from './interfaces/SecurityMonitor';
 
@@ -73,7 +76,11 @@ export class SecurityMonitorScheduler {
           const healthy = await this.monitor.checkSystemHealth();
           if (!healthy) {
             console.error('System health check failed');
+<<<<<<< HEAD
             // Implement additional alerting/notification logic
+=======
+            // Additional alerting/notification could be implemented here
+>>>>>>> feature/security-implementation
           }
         } catch (error) {
           console.error('Health check error:', error);
@@ -96,6 +103,7 @@ export class SecurityMonitorScheduler {
       nextRun: job.nextDate().toDate()
     }));
   }
+<<<<<<< HEAD
 }
 
 // Usage example:
@@ -119,3 +127,6 @@ const monitor = new SecurityMonitorImpl({
 const scheduler = new SecurityMonitorScheduler(monitor);
 scheduler.startScheduledTasks();
 */
+=======
+}
+>>>>>>> feature/security-implementation

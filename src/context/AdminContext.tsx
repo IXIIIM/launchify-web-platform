@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/context/AdminContext.tsx
+=======
+>>>>>>> feature/security-implementation
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AdminStats {

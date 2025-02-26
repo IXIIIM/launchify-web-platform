@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/verification-info-requested.ts
+=======
+>>>>>>> feature/security-implementation
 export const verificationInfoRequestedTemplate = `
 <!DOCTYPE html>
 <html>

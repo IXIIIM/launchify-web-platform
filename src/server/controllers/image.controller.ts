@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/controllers/image.controller.ts
+=======
+>>>>>>> feature/security-implementation
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { ImageOptimizationService } from '../services/image/ImageOptimizationService';

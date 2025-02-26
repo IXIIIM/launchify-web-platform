@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/hooks/__tests__/useChartOptimization.test.ts
+=======
+>>>>>>> feature/security-implementation
 import { renderHook, act } from '@testing-library/react-hooks';
 import { useChartOptimization } from '../useChartOptimization';
 
@@ -218,4 +221,8 @@ describe('useChartOptimization', () => {
       expect(result.current.isAnimating).toBe(false); // Animation should be skipped
     });
   });
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> feature/security-implementation

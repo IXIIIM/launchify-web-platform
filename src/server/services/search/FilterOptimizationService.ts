@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/services/search/FilterOptimizationService.ts
+=======
+>>>>>>> feature/security-implementation
 import { Redis } from 'ioredis';
 import { createHash } from 'crypto';
 

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/hooks/useMediaQuery.ts
+=======
+>>>>>>> feature/security-implementation
 import { useState, useEffect } from 'react';
 
 /**

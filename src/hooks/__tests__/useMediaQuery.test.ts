@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/hooks/__tests__/useMediaQuery.test.ts
+=======
+>>>>>>> feature/security-implementation
 import { renderHook } from '@testing-library/react-hooks';
 import { useMediaQuery, breakpoints } from '../useMediaQuery';
 import { act } from 'react-dom/test-utils';

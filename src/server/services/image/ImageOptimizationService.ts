@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/services/image/ImageOptimizationService.ts
+=======
+>>>>>>> feature/security-implementation
 import sharp from 'sharp';
 import { S3 } from 'aws-sdk';
 import { PrismaClient } from '@prisma/client';

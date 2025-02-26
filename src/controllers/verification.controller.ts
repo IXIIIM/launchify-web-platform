@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/controllers/verification.controller.ts
+=======
+>>>>>>> feature/security-implementation
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AccessLogService } from '../services/AccessLogService';
@@ -54,6 +57,7 @@ export class VerificationController {
       res.status(500).json({ message: 'Error submitting verification' });
     }
   };
+<<<<<<< HEAD
 
   submitTechnicalReview = async (req: AuthRequest, res: Response) => {
     try {
@@ -418,3 +422,6 @@ export class ProfileController {
     }
   };
 }
+=======
+}
+>>>>>>> feature/security-implementation

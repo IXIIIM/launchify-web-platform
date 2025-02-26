@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/verification-request-admin.ts
+=======
+>>>>>>> feature/security-implementation
 export const verificationRequestAdminTemplate = `
 <!DOCTYPE html>
 <html>

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/verification-rejected.ts
+=======
+>>>>>>> feature/security-implementation
 export const verificationRejectedTemplate = `
 <!DOCTYPE html>
 <html>

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/components/analytics/MobileOptimizedDashboard.tsx
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useRef } from 'react';
 import { useChartOptimization } from '@/hooks/useChartOptimization';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';

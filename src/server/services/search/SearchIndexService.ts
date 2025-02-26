@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/services/search/SearchIndexService.ts
+=======
+>>>>>>> feature/security-implementation
 import { PrismaClient } from '@prisma/client';
 import { Redis } from 'ioredis';
 import { createHash } from 'crypto';

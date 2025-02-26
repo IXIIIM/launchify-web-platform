@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Flag, Share2, Info } from 'lucide-react';
@@ -326,3 +327,6 @@ const SearchResults: React.FC<SearchResultsProps> = ({
 };
 
 export default SearchResults;
+=======
+// Content of mobile-optimized SearchResults.tsx as shown above
+>>>>>>> feature/security-implementation

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/routes/analytics.routes.ts
+=======
+>>>>>>> feature/security-implementation
 import express from 'express';
 import {
   getSubscriptionMetrics,

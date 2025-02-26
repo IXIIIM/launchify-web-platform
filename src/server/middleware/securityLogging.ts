@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/middleware/securityLogging.ts
+=======
+>>>>>>> feature/security-implementation
 import { logSecurityEvent } from '../services/SecurityLoggingService';
 
 // Authentication logging

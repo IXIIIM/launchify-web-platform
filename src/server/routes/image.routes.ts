@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/routes/image.routes.ts
+=======
+>>>>>>> feature/security-implementation
 import express from 'express';
 import {
   uploadImage,

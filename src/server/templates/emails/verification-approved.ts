@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/verification-approved.ts
+=======
+>>>>>>> feature/security-implementation
 export const verificationApprovedTemplate = `
 <!DOCTYPE html>
 <html>

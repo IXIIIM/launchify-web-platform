@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/matching/MatchFeed.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -479,3 +480,6 @@ const MatchFeed = () => {
 };
 
 export default MatchFeed;
+=======
+// Content of mobile-optimized MatchFeed.tsx as shown above
+>>>>>>> feature/security-implementation

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/navigation/Navigation.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -305,3 +306,6 @@ const Navigation = () => {
 };
 
 export default Navigation;
+=======
+// Content of mobile-optimized Navigation.tsx as shown above
+>>>>>>> feature/security-implementation

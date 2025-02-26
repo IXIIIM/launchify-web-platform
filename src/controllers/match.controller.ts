@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/controllers/match.controller.ts
+=======
+>>>>>>> feature/security-implementation
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AccessLogService } from '../services/AccessLogService';
@@ -57,6 +60,7 @@ export class MatchController {
       res.status(500).json({ message: 'Error fetching matches' });
     }
   };
+<<<<<<< HEAD
 
   getRecommendedMatches = async (req: AuthRequest, res: Response) => {
     try {
@@ -284,3 +288,6 @@ export class MessageController {
 }
 
 // Additional controllers for verification, analytics, and profile...
+=======
+}
+>>>>>>> feature/security-implementation

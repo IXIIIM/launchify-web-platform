@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/base/mobile/index.tsx
 
 import React, { forwardRef, useState } from 'react';
@@ -302,3 +303,6 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
 
 // Export all components
 export { TouchButton, SwipeableCard, TouchList, TouchableOverlay, PullToRefresh };
+=======
+// Content of mobile base components as shown above
+>>>>>>> feature/security-implementation

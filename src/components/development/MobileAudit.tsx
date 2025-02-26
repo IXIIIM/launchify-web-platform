@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/development/MobileAudit.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -196,3 +197,6 @@ const MobileAudit = () => {
 };
 
 export default MobileAudit;
+=======
+// Content of MobileAudit.tsx as shown above
+>>>>>>> feature/security-implementation

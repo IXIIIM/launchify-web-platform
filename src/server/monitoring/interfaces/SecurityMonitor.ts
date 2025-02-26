@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/monitoring/interfaces/SecurityMonitor.ts
+=======
+>>>>>>> feature/security-implementation
 import { PrismaClient } from '@prisma/client';
 import { EmailService } from '../../services/email/EmailService';
 import { WebSocketServer } from '../../services/websocket';

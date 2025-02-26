@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/chat/ChatWindow.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -305,3 +306,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
 };
 
 export default ChatWindow;
+=======
+// Content of mobile-optimized ChatWindow.tsx as shown above
+>>>>>>> feature/security-implementation

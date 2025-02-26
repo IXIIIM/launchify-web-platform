@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/components/analytics/__tests__/MobileOptimizedDashboard.test.tsx
+=======
+>>>>>>> feature/security-implementation
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

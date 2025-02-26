@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/pages/admin/Dashboard.tsx
+=======
+>>>>>>> feature/security-implementation
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SubscriptionAnalytics from '@/components/admin/SubscriptionAnalytics';

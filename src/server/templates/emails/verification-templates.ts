@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/verification-templates.ts
+=======
+>>>>>>> feature/security-implementation
 import { verificationApprovedTemplate } from './verification-approved';
 import { verificationRejectedTemplate } from './verification-rejected';
 import { verificationInfoRequestedTemplate } from './verification-info-requested';

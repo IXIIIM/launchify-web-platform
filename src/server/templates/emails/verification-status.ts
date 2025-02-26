@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/templates/emails/verification-status.ts
+=======
+>>>>>>> feature/security-implementation
 export const verificationStatusTemplate = `
 <!DOCTYPE html>
 <html>

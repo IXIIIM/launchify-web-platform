@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/chat/ChatList.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -313,3 +314,6 @@ const ChatList: React.FC<ChatProps> = ({
 };
 
 export default ChatList;
+=======
+// Content of mobile-optimized ChatList.tsx as shown above
+>>>>>>> feature/security-implementation

@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 // src/components/common/ImageCropInterface.ts
 
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ImagePreprocessor from './ImagePreprocessor';
 

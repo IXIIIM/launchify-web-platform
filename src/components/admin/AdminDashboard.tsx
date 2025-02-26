@@ -1,10 +1,14 @@
+<<<<<<< HEAD
 // src/components/admin/AdminDashboard.tsx
 
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { UserPlus, ShieldAlert, FileCheck, ActivitySquare } from 'lucide-react';
 
+<<<<<<< HEAD
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     pendingVerifications: 0,
@@ -194,3 +198,6 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+=======
+// [Rest of the component code...]
+>>>>>>> feature/security-implementation

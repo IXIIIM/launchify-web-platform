@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/components/ui/BottomSheet.tsx
 
 import React, { useEffect, useRef } from 'react';
@@ -152,3 +153,6 @@ const useMediaQuery = (query: string): boolean => {
 };
 
 export default BottomSheet;
+=======
+// Content of BottomSheet.tsx as shown above
+>>>>>>> feature/security-implementation

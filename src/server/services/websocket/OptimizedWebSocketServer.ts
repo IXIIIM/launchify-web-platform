@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/server/services/websocket/OptimizedWebSocketServer.ts
 import WebSocket from 'ws';
 import http from 'http';
@@ -403,3 +404,6 @@ export class WebSocketMetrics {
     await this.redis.del('websocket_metrics');
   }
 }
+=======
+[Previously created optimization code]
+>>>>>>> feature/security-implementation

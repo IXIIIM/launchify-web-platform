@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/components/chat/MobileMessageView.tsx
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useRef, useEffect } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { motion, AnimatePresence } from 'framer-motion';

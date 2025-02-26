@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/routes/matches.ts
+=======
+>>>>>>> feature/security-implementation
 import express from 'express';
 import { matchController } from '../controllers/match';
 import { authenticateToken } from '../middleware/auth';
@@ -39,6 +42,7 @@ router.get('/:id',
   matchController.getMatch
 );
 
+<<<<<<< HEAD
 export default router;
 
 // src/routes/messages.ts
@@ -167,4 +171,6 @@ router.post('/:id/boost',
   profileController.boostProfile
 );
 
+=======
+>>>>>>> feature/security-implementation
 export default router;

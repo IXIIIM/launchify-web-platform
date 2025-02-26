@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/components/admin/SubscriptionAnalytics.tsx
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';

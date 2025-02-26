@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 // src/components/common/ImagePreprocessor.tsx
 
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 

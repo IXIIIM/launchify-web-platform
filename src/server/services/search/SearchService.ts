@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/server/services/search/SearchService.ts
 import { PrismaClient } from '@prisma/client';
 import { Redis } from 'ioredis';
@@ -294,3 +295,6 @@ export class SearchService {
     });
   }
 }
+=======
+[Previous search service content...]
+>>>>>>> feature/security-implementation

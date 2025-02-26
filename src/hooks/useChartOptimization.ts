@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/hooks/useChartOptimization.ts
+=======
+>>>>>>> feature/security-implementation
 import { useState, useEffect, useMemo } from 'react';
 import { useMediaQuery } from './useMediaQuery';
 

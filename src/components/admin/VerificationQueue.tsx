@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/components/admin/VerificationQueue.tsx
+=======
+>>>>>>> feature/security-implementation
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import {
@@ -20,7 +23,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+<<<<<<< HEAD
 import { FileText, Info, AlertCircle, CheckCircle, XCircle, Clock, ExternalLink } from 'lucide-react';
+=======
+import { ExternalLink, FileText, Info } from 'lucide-react';
+>>>>>>> feature/security-implementation
 
 interface VerificationRequest {
   id: string;
@@ -170,7 +177,11 @@ const VerificationQueue: React.FC = () => {
           <h3 className="text-lg font-semibold mb-2">Documents</h3>
           <div className="space-y-2">
             {request.documents.map((doc, index) => (
+<<<<<<< HEAD
               
+=======
+              <a
+>>>>>>> feature/security-implementation
                 key={index}
                 href={doc}
                 target="_blank"

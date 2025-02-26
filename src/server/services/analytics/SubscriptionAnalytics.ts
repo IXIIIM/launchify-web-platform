@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/services/analytics/SubscriptionAnalytics.ts
+=======
+>>>>>>> feature/security-implementation
 import { PrismaClient } from '@prisma/client';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format } from 'date-fns';
 import { Redis } from 'ioredis';

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // src/server/services/verification/VerificationService.ts
+=======
+>>>>>>> feature/security-implementation
 import { PrismaClient } from '@prisma/client';
 import { EmailService } from '../email/EmailService';
 import { WebSocketServer } from '../websocket';
