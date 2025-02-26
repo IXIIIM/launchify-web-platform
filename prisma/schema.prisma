@@ -1,4 +1,263 @@
-// Update DocumentEncryption model
+// prisma/schema.prisma
+// This is your Prisma schema file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String            @id @default(uuid())
+  email              String            @unique
+  password           String
+  userType           String            // 'entrepreneur' or 'funder'
+  subscriptionTier   String            // Basic, Chrome, Bronze, Silver, Gold, Platinum
+  verificationLevel  String            // None, BusinessPlan, UseCase, etc.
+  emailVerified      Boolean           @default(false)
+  phoneVerified      Boolean           @default(false)
+  verificationToken  String?
+  resetPasswordToken String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  stripeCustomerId   String?
+  stripeConnectId    String?           // For handling direct payments
+
+  // Profile Relations
+  entrepreneurProfile EntrepreneurProfile?
+  funderProfile      FunderProfile?
+  
+  // Image Relations
+  images             Image[]
+  
+  // Match & Communication Relations
+  matches            Match[]           @relation("UserMatches")
+  matchedWith        Match[]           @relation("MatchedWithUsers")
+  sentMessages       Message[]         @relation("SentMessages")
+  receivedMessages   Message[]         @relation("ReceivedMessages")
+  
+  // Subscription & Notification Relations
+  subscriptions      Subscription[]
+  notifications      Notification[]
+  
+  // Review Relations
+  reviewsGiven       Review[]          @relation("ReviewsGiven")
+  reviewsReceived    Review[]          @relation("ReviewsReceived")
+  flags              Flag[]
+  
+  // Escrow Relations
+  entrepreneurEscrows EscrowAccount[]  @relation("EntrepreneurEscrows")
+  funderEscrows      EscrowAccount[]   @relation("FunderEscrows")
+  
+  // Location Relation
+  location           UserLocation?
+}
+
+model Image {
+  id        String   @id @default(uuid())
+  userId    String
+  purpose   String   // profile, document, logo
+  filename  String
+  format    String   // jpeg, png, webp
+  width     Int
+  height    Int
+  size      Int      // in bytes
+  url       String
+  metadata  Json?    // Additional image metadata
+  variants  ImageVariant[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([purpose])
+}
+
+model ImageVariant {
+  id        String   @id @default(uuid())
+  imageId   String
+  purpose   String   // thumbnail, medium, large
+  filename  String
+  format    String
+  width     Int
+  height    Int
+  size      Int
+  url       String
+  createdAt DateTime @default(now())
+
+  image     Image    @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@index([imageId])
+}
+
+model EntrepreneurProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  projectName         String
+  logo                String?
+  photo               String?
+  dbaNumber          String?
+  taxId              String?
+  companyWebsite     String?
+  linkedinUrl        String?
+  features           String[]
+  industries         String[]
+  yearsExperience    Int
+  businessType       String    // B2B or B2C
+  desiredInvestment  Json     // { amount: number, timeframe: string }
+  profitabilityTimeframe String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model FunderProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  name                String
+  logo                String?
+  photo               String?
+  taxId               String?
+  companyWebsite      String?
+  linkedinUrl         String?
+  availableFunds      Float
+  areasOfInterest     String[]
+  yearsExperience     Int
+  investmentPreferences Json    // { timeframe: string, commitmentLength: string }
+  certifications      String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Match {
+  id                 String   @id @default(uuid())
+  userId             String
+  matchedWithId      String
+  status             String   // pending, accepted, rejected
+  compatibility      Float
+  compatibilityFactors Json?   // Stores detailed matching factors
+  fraudRiskScore     Float?
+  matchQuality       String?  // HIGH, MEDIUM, LOW
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation("UserMatches", fields: [userId], references: [id])
+  matchedWith        User     @relation("MatchedWithUsers", fields: [matchedWithId], references: [id])
+  messages           Message[]
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  matchId        String
+  senderId       String
+  receiverId     String
+  content        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  match     Match    @relation(fields: [matchId], references: [id])
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  userId          String
+  tier            String
+  status          String   // active, canceled, past_due
+  stripeId        String?
+  currentPeriodEnd DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // match, message, system
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Review {
+  id            String      @id @default(uuid())
+  reviewerId    String      // Who wrote the review
+  reviewedId    String      // Who is being reviewed
+  rating        Int         @db.SmallInt
+  categories    Json        // Stores ratings for different categories {professionalism: 5, communication: 4, etc}
+  content       String?     @db.Text
+  status        String      // PENDING, PUBLISHED, FLAGGED, REMOVED
+  flags         Flag[]      // Related flags
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  reviewer      User        @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewed      User        @relation("ReviewsReceived", fields: [reviewedId], references: [id])
+
+  // Add encryption for sensitive content
+  encryption    ReviewEncryption?
+}
+
+model Flag {
+  id            String      @id @default(uuid())
+  reviewId      String
+  reporterId    String
+  reason        String
+  status        String      // PENDING, REVIEWED, DISMISSED
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  review        Review      @relation(fields: [reviewId], references: [id])
+  reporter      User        @relation(fields: [reporterId], references: [id])
+}
+
+model ReviewEncryption {
+  id            String      @id @default(uuid())
+  reviewId      String      @unique
+  keyId         String      // Reference to encryption key
+  iv            String      // Initialization vector
+  authTag       String      // Authentication tag
+  salt          String      // Salt for key derivation
+  algorithm     String      // Encryption algorithm used
+  lastRotation  DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relation
+  review        Review      @relation(fields: [reviewId], references: [id])
+}
+
+model Document {
+  id            String      @id @default(uuid())
+  userId        String
+  title         String
+  filename      String
+  fileType      String
+  fileSize      Int
+  path          String
+  status        String      // PENDING, VERIFIED, REJECTED
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Encryption relation
+  encryption    DocumentEncryption?
+}
+
 model DocumentEncryption {
   id            String    @id @default(uuid())
   documentId    String    @unique
@@ -14,4 +273,60 @@ model DocumentEncryption {
   document      Document  @relation(fields: [documentId], references: [id])
 }
 
-// ... [Rest of schema updates]
+model UserLocation {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  latitude  Float
+  longitude Float
+  city      String?
+  state     String?
+  country   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model EscrowAccount {
+  id                String            @id @default(uuid())
+  entrepreneurId    String
+  funderId          String
+  totalAmount       Float
+  escrowFee         Float
+  status            String            // PENDING, ACTIVE, COMPLETED, DISPUTED
+  stripeAccountId   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  entrepreneur      User              @relation("EntrepreneurEscrows", fields: [entrepreneurId], references: [id])
+  funder            User              @relation("FunderEscrows", fields: [funderId], references: [id])
+  milestones        Milestone[]
+  transactions      EscrowTransaction[]
+}
+
+model Milestone {
+  id              String    @id @default(uuid())
+  escrowAccountId String
+  amount          Float
+  description     String
+  dueDate         DateTime
+  status          String    // PENDING, APPROVED, RELEASED, DISPUTED
+  proofOfWork     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  escrowAccount   EscrowAccount @relation(fields: [escrowAccountId], references: [id])
+}
+
+model EscrowTransaction {
+  id              String    @id @default(uuid())
+  escrowAccountId String
+  amount          Float
+  type            String    // DEPOSIT, RELEASE, REFUND, FEE
+  status          String    // PENDING, COMPLETED, FAILED
+  stripePaymentId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  escrowAccount   EscrowAccount @relation(fields: [escrowAccountId], references: [id])
+}
