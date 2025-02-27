@@ -1,129 +1,80 @@
 import { Request, Response } from 'express';
-import { AnalyticsService } from '../services/analytics';
-import { Redis } from 'ioredis';
-import { startOfDay, subDays } from 'date-fns';
+import { SubscriptionAnalytics } from '../services/analytics/SubscriptionAnalytics';
+import { startOfMonth, subMonths, endOfMonth } from 'date-fns';
 
-const redis = new Redis(process.env.REDIS_URL);
-const analyticsService = new AnalyticsService();
-const CACHE_TTL = 60 * 5; // 5 minutes cache
+const subscriptionAnalytics = new SubscriptionAnalytics();
 
 interface AuthRequest extends Request {
   user: any;
 }
 
-export const getPlatformAnalytics = async (req: AuthRequest, res: Response) => {
+export const getSubscriptionMetrics = async (req: AuthRequest, res: Response) => {
   try {
-    // Only allow admin access
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Unauthorized access' });
-    }
+    const timeframe = req.query.timeframe || '1m';
+    const endDate = endOfMonth(new Date());
+    let startDate: Date;
 
-    const { startDate = subDays(new Date(), 30), endDate = new Date() } = req.query;
-    
-    // Create cache key based on date range
-    const cacheKey = `analytics:platform:${startDate}:${endDate}`;
-    
-    // Try to get from cache first
-    const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-      return res.json(JSON.parse(cachedData));
-    }
-
-    // Get fresh data if not in cache
-    const analytics = await analyticsService.getPlatformAnalytics(
-      new Date(startDate as string),
-      new Date(endDate as string)
-    );
-
-    // Cache the results
-    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(analytics));
-
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error fetching platform analytics:', error);
-    res.status(500).json({ message: 'Error fetching analytics' });
-  }
-};
-
-export const getUserAnalytics = async (req: AuthRequest, res: Response) => {
-  try {
-    const { timeframe = 'month' } = req.query;
-    const cacheKey = `analytics:user:${req.user.id}:${timeframe}`;
-
-    // Try cache first
-    const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-      return res.json(JSON.parse(cachedData));
-    }
-
-    const analytics = await analyticsService.getUserAnalytics(
-      req.user.id,
-      timeframe as 'week' | 'month' | 'year'
-    );
-
-    // Cache the results
-    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(analytics));
-
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error fetching user analytics:', error);
-    res.status(500).json({ message: 'Error fetching analytics' });
-  }
-};
-
-export const generateReport = async (req: AuthRequest, res: Response) => {
-  try {
-    const { startDate, endDate, reportType } = req.body;
-    
-    if (!startDate || !endDate || !reportType) {
-      return res.status(400).json({ message: 'Missing required parameters' });
-    }
-
-    let report;
-    switch (reportType) {
-      case 'user':
-        report = await analyticsService.generateUserReport(req.user.id, startDate, endDate);
+    switch (timeframe) {
+      case '3m':
+        startDate = startOfMonth(subMonths(endDate, 3));
         break;
-      case 'subscription':
-        if (req.user.role !== 'admin') {
-          return res.status(403).json({ message: 'Unauthorized access' });
-        }
-        report = await analyticsService.generateSubscriptionReport(startDate, endDate);
+      case '6m':
+        startDate = startOfMonth(subMonths(endDate, 6));
         break;
-      case 'engagement':
-        report = await analyticsService.generateEngagementReport(startDate, endDate);
-        break;
-      case 'revenue':
-        if (req.user.role !== 'admin') {
-          return res.status(403).json({ message: 'Unauthorized access' });
-        }
-        report = await analyticsService.generateRevenueReport(startDate, endDate);
+      case '12m':
+        startDate = startOfMonth(subMonths(endDate, 12));
         break;
       default:
-        return res.status(400).json({ message: 'Invalid report type' });
+        startDate = startOfMonth(subMonths(endDate, 1));
     }
 
-    res.json(report);
+    // Check user permissions
+    if (!req.user.permissions?.includes('VIEW_ANALYTICS')) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const metrics = await subscriptionAnalytics.getSubscriptionMetrics(
+      startDate,
+      endDate
+    );
+
+    res.json(metrics);
   } catch (error) {
-    console.error('Error generating report:', error);
+    console.error('Error fetching subscription metrics:', error);
+    res.status(500).json({ message: 'Error fetching metrics' });
+  }
+};
+
+export const generateSubscriptionReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const { startDate, endDate, format = 'json' } = req.body;
+
+    // Check user permissions
+    if (!req.user.permissions?.includes('GENERATE_REPORTS')) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const metrics = await subscriptionAnalytics.getSubscriptionMetrics(
+      new Date(startDate),
+      new Date(endDate)
+    );
+
+    if (format === 'csv') {
+      // Convert to CSV format
+      const csv = await generateCSVReport(metrics);
+      res.header('Content-Type', 'text/csv');
+      res.attachment(`subscription-report-${startDate}-${endDate}.csv`);
+      return res.send(csv);
+    }
+
+    res.json(metrics);
+  } catch (error) {
+    console.error('Error generating subscription report:', error);
     res.status(500).json({ message: 'Error generating report' });
   }
 };
 
-export const invalidateCache = async (req: AuthRequest, res: Response) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Unauthorized access' });
-    }
-
-    const keys = await redis.keys('analytics:*');
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
-
-    res.json({ message: 'Analytics cache invalidated successfully' });
-  } catch (error) {
-    console.error('Error invalidating cache:', error);
-    res.status(500).json({ message: 'Error invalidating cache' });
-  }
+const generateCSVReport = async (metrics: any) => {
+  // Implementation for CSV conversion
+  return '';
 };
