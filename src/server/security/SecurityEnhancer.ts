@@ -1,4 +1,3 @@
-// src/server/security/SecurityEnhancer.ts
 import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -132,7 +131,7 @@ export class SecurityEnhancer {
       const sanitizeValue = (value: any): any => {
         if (typeof value === 'string') {
           // Remove SQL injection patterns
-          return value.replace(/['";\\/g, '');
+          return value.replace(/['";\\]/g, '');
         }
         if (typeof value === 'object') {
           return Object.keys(value).reduce((acc: any, key) => {
@@ -181,3 +180,33 @@ export const securityMiddleware = [
   SecurityEnhancer.sqlInjectionPrevention(),
   SecurityEnhancer.sessionMiddleware()
 ];
+
+// Application of security enhancements
+// Usage Example:
+/*
+import express from 'express';
+import cors from 'cors';
+import { SecurityEnhancer, securityMiddleware } from './security/SecurityEnhancer';
+
+const app = express();
+
+// Apply security middleware
+app.use(cors(SecurityEnhancer.corsOptions));
+app.use(securityMiddleware);
+
+// Apply rate limiting to specific routes
+app.use('/api/auth', SecurityEnhancer.apiLimiter.auth);
+app.use('/api', SecurityEnhancer.apiLimiter.standard);
+
+// Enhanced error handling
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error(err.stack);
+  
+  // Don't expose error details in production
+  const message = process.env.NODE_ENV === 'production' 
+    ? 'Internal Server Error'
+    : err.message;
+    
+  res.status(500).json({ error: message });
+});
+*/
