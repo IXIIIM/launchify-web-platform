@@ -1,39 +1,92 @@
 // src/tests/security/KeyRotation.test.ts
 import { KeyRotation } from '../../server/security/KeyRotation';
-import { mockClient } from 'aws-sdk-mock';
-import { S3, KMS } from 'aws-sdk';
+import { DocumentEncryption } from '../../server/security/DocumentEncryption';
 import { PrismaClient } from '@prisma/client';
+import { S3, KMS } from 'aws-sdk';
+import { mockClient } from 'aws-sdk-mock';
+import { createHash, randomBytes } from 'crypto';
 
 const prisma = new PrismaClient();
 
+// Mock AWS services
+mockClient(S3);
+mockClient(KMS);
+
 describe('KeyRotation', () => {
-  // Test data setup
+  // Test data
   const testUserId = 'test-user-id';
   const testDocumentId = 'test-document-id';
-  const testMasterKey = Buffer.from('test-master-key');
-  const testDocumentKey = Buffer.from('test-document-key');
+  const testContent = Buffer.from('Test document content');
+  const testMasterKey = randomBytes(32);
+  const testDocumentKey = randomBytes(32);
 
   beforeEach(async () => {
-    // Mock AWS services
-    mockClient(S3);
-    mockClient(KMS);
+    // Setup test environment
+    await prisma.securitySettings.create({
+      data: {
+        userId: testUserId,
+        masterKeyId: 'old-master-key',
+        lastKeyRotation: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000) // 100 days old
+      }
+    });
 
-    // Setup test data
-    await setupTestData();
+    await prisma.document.create({
+      data: {
+        id: testDocumentId,
+        ownerId: testUserId,
+        name: 'test.txt',
+        mimeType: 'text/plain',
+        size: testContent.length,
+        encryption: {
+          create: {
+            keyId: 'old-document-key',
+            iv: randomBytes(12).toString('hex'),
+            authTag: randomBytes(16).toString('hex'),
+            salt: randomBytes(32).toString('hex'),
+            algorithm: 'aes-256-gcm',
+            lastRotation: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000) // 40 days old
+          }
+        }
+      }
+    });
+
+    // Mock AWS responses
+    mockClient(KMS).on('generateDataKey').returns({
+      Plaintext: testDocumentKey,
+      CiphertextBlob: randomBytes(32)
+    });
+
+    mockClient(S3).on('putObject').returns({
+      ETag: '"mock-etag"'
+    });
+
+    mockClient(S3).on('getObject').returns({
+      Body: await DocumentEncryption.encryptDocument(
+        testContent,
+        testUserId,
+        testDocumentId
+      )
+    });
   });
 
   afterEach(async () => {
-    // Clean up test data
-    await cleanupTestData();
-    mockClient.restore();
+    // Cleanup test data
+    await prisma.documentEncryption.deleteMany({
+      where: { documentId: testDocumentId }
+    });
+    await prisma.document.deleteMany({
+      where: { id: testDocumentId }
+    });
+    await prisma.securitySettings.deleteMany({
+      where: { userId: testUserId }
+    });
+    await prisma.securityLog.deleteMany({
+      where: { userId: testUserId }
+    });
   });
 
   describe('rotateMasterKey', () => {
-    it('should successfully rotate master key', async () => {
-      // Setup
-      mockKMSGenerateKey();
-      mockS3PutObject();
-
+    it('should rotate master key successfully', async () => {
       // Execute
       await KeyRotation.rotateMasterKey(testUserId);
 
@@ -42,8 +95,10 @@ describe('KeyRotation', () => {
         where: { userId: testUserId }
       });
 
-      expect(settings?.lastKeyRotation).toBeDefined();
       expect(settings?.masterKeyId).not.toBe('old-master-key');
+      expect(settings?.lastKeyRotation).toBeGreaterThan(
+        new Date(Date.now() - 1000) // Within last second
+      );
 
       // Verify log entry
       const log = await prisma.securityLog.findFirst({
@@ -54,31 +109,29 @@ describe('KeyRotation', () => {
       });
 
       expect(log).toBeTruthy();
+      expect(log?.details).toMatchObject({
+        keyType: 'MASTER_KEY',
+        oldKeyId: 'old-master-key'
+      });
     });
 
-    it('should handle KMS errors gracefully', async () => {
-      // Setup
-      mockKMSError();
+    it('should re-encrypt document keys after master key rotation', async () => {
+      // Execute
+      await KeyRotation.rotateMasterKey(testUserId);
 
-      // Execute and verify
-      await expect(KeyRotation.rotateMasterKey(testUserId))
-        .rejects.toThrow('Failed to rotate master key');
+      // Verify document still accessible
+      const content = await DocumentEncryption.decryptDocument(
+        testContent,
+        testUserId,
+        testDocumentId
+      );
 
-      // Verify no partial changes
-      const settings = await prisma.securitySettings.findUnique({
-        where: { userId: testUserId }
-      });
-
-      expect(settings?.masterKeyId).toBe('old-master-key');
+      expect(content.toString()).toBe(testContent.toString());
     });
   });
 
   describe('rotateDocumentKey', () => {
-    it('should successfully rotate document key', async () => {
-      // Setup
-      mockKMSGenerateKey();
-      mockS3Operations();
-
+    it('should rotate document key successfully', async () => {
       // Execute
       await KeyRotation.rotateDocumentKey(testDocumentId, testUserId);
 
@@ -87,8 +140,10 @@ describe('KeyRotation', () => {
         where: { documentId: testDocumentId }
       });
 
-      expect(encryption?.lastRotation).toBeDefined();
       expect(encryption?.keyId).not.toBe('old-document-key');
+      expect(encryption?.lastRotation).toBeGreaterThan(
+        new Date(Date.now() - 1000)
+      );
 
       // Verify log entry
       const log = await prisma.securityLog.findFirst({
@@ -105,29 +160,23 @@ describe('KeyRotation', () => {
       expect(log).toBeTruthy();
     });
 
-    it('should handle S3 errors gracefully', async () => {
-      // Setup
-      mockS3Error();
+    it('should maintain document accessibility after key rotation', async () => {
+      // Execute
+      await KeyRotation.rotateDocumentKey(testDocumentId, testUserId);
 
-      // Execute and verify
-      await expect(KeyRotation.rotateDocumentKey(testDocumentId, testUserId))
-        .rejects.toThrow('Failed to rotate document key');
+      // Verify content
+      const content = await DocumentEncryption.decryptDocument(
+        testContent,
+        testUserId,
+        testDocumentId
+      );
 
-      // Verify no partial changes
-      const encryption = await prisma.documentEncryption.findUnique({
-        where: { documentId: testDocumentId }
-      });
-
-      expect(encryption?.keyId).toBe('old-document-key');
+      expect(content.toString()).toBe(testContent.toString());
     });
   });
 
   describe('checkRotationNeeds', () => {
     it('should identify keys needing rotation', async () => {
-      // Setup
-      const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000); // 100 days old
-      await setupOldKeys(oldDate);
-
       // Execute
       await KeyRotation.checkRotationNeeds();
 
@@ -145,82 +194,91 @@ describe('KeyRotation', () => {
     });
   });
 
-  // Helper functions
-  async function setupTestData() {
-    await prisma.user.create({
-      data: {
-        id: testUserId,
-        email: 'test@example.com',
-        securitySettings: {
-          create: {
-            masterKeyId: 'old-master-key',
-            lastKeyRotation: new Date()
+  describe('key deletion scheduling', () => {
+    it('should schedule old keys for deletion', async () => {
+      // Execute rotation
+      await KeyRotation.rotateMasterKey(testUserId);
+
+      // Verify deletion scheduled
+      const deletionSchedule = await prisma.keyDeletionSchedule.findFirst({
+        where: { keyId: 'old-master-key' }
+      });
+
+      expect(deletionSchedule).toBeTruthy();
+      expect(deletionSchedule?.scheduledDeletion).toBeGreaterThan(
+        new Date(Date.now() + 6 * 24 * 60 * 60 * 1000) // At least 6 days from now
+      );
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle KMS service errors gracefully', async () => {
+      // Mock KMS error
+      mockClient(KMS).on('generateDataKey').rejects(
+        new Error('KMS service error')
+      );
+
+      // Execute and verify error handling
+      await expect(
+        KeyRotation.rotateMasterKey(testUserId)
+      ).rejects.toThrow('Failed to rotate master key');
+
+      // Verify no partial changes
+      const settings = await prisma.securitySettings.findUnique({
+        where: { userId: testUserId }
+      });
+      expect(settings?.masterKeyId).toBe('old-master-key');
+    });
+
+    it('should handle S3 service errors gracefully', async () => {
+      // Mock S3 error
+      mockClient(S3).on('putObject').rejects(
+        new Error('S3 service error')
+      );
+
+      // Execute and verify error handling
+      await expect(
+        KeyRotation.rotateDocumentKey(testDocumentId, testUserId)
+      ).rejects.toThrow('Failed to rotate document key');
+
+      // Verify no partial changes
+      const encryption = await prisma.documentEncryption.findUnique({
+        where: { documentId: testDocumentId }
+      });
+      expect(encryption?.keyId).toBe('old-document-key');
+    });
+  });
+
+  describe('concurrent rotations', () => {
+    it('should handle concurrent master key rotations safely', async () => {
+      // Start multiple rotations concurrently
+      const rotations = Promise.all([
+        KeyRotation.rotateMasterKey(testUserId),
+        KeyRotation.rotateMasterKey(testUserId),
+        KeyRotation.rotateMasterKey(testUserId)
+      ]);
+
+      await expect(rotations).resolves.not.toThrow();
+
+      // Verify only one rotation succeeded
+      const logs = await prisma.securityLog.findMany({
+        where: {
+          userId: testUserId,
+          eventType: 'KEY_ROTATION',
+          details: {
+            path: ['keyType'],
+            equals: 'MASTER_KEY'
           }
         }
-      }
+      });
+
+      expect(logs.length).toBe(1);
     });
-
-    await prisma.document.create({
-      data: {
-        id: testDocumentId,
-        ownerId: testUserId,
-        encryption: {
-          create: {
-            keyId: 'old-document-key',
-            lastRotation: new Date()
-          }
-        }
-      }
-    });
-  }
-
-  async function cleanupTestData() {
-    await prisma.documentEncryption.deleteMany();
-    await prisma.document.deleteMany();
-    await prisma.securitySettings.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.securityLog.deleteMany();
-  }
-
-  async function setupOldKeys(oldDate: Date) {
-    await prisma.securitySettings.update({
-      where: { userId: testUserId },
-      data: { lastKeyRotation: oldDate }
-    });
-
-    await prisma.documentEncryption.update({
-      where: { documentId: testDocumentId },
-      data: { lastRotation: oldDate }
-    });
-  }
-
-  // Mock functions
-  function mockKMSGenerateKey() {
-    mockClient(KMS).on('generateDataKey').returns({
-      Plaintext: testDocumentKey,
-      CiphertextBlob: Buffer.from('encrypted-key')
-    });
-  }
-
-  function mockKMSError() {
-    mockClient(KMS).on('generateDataKey').rejects(
-      new Error('KMS service error')
-    );
-  }
-
-  function mockS3Operations() {
-    mockClient(S3).on('putObject').returns({
-      ETag: '"mock-etag"'
-    });
-
-    mockClient(S3).on('getObject').returns({
-      Body: Buffer.from('test-content')
-    });
-  }
-
-  function mockS3Error() {
-    mockClient(S3).on('putObject').rejects(
-      new Error('S3 service error')
-    );
-  }
+  });
 });
+
+// Utility function to compare buffers
+function compareBuffers(buf1: Buffer, buf2: Buffer): boolean {
+  if (buf1.length !== buf2.length) return false;
+  return buf1.compare(buf2) === 0;
+}

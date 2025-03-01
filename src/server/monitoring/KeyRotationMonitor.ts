@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 // src/server/monitoring/KeyRotationMonitor.ts
-=======
->>>>>>> feature/security-implementation
 import { PrismaClient } from '@prisma/client';
 import { EmailService } from '../services/email/EmailService';
 import { WebSocketServer } from '../services/websocket';
@@ -29,6 +26,7 @@ export class KeyRotationMonitor {
     this.wsServer = wsServer;
   }
 
+  // Monitor key ages and schedule rotations
   async monitorKeyAges(): Promise<void> {
     try {
       // Check master keys
@@ -89,6 +87,92 @@ export class KeyRotationMonitor {
     }
   }
 
+  // Monitor failed rotation attempts
+  async monitorFailedRotations(): Promise<void> {
+    try {
+      const failedRotations = await prisma.securityLog.groupBy({
+        by: ['userId'],
+        where: {
+          eventType: 'KEY_ROTATION',
+          status: 'FAILURE',
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+          }
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      for (const failure of failedRotations) {
+        const severity = this.determineFailureSeverity(failure._count.id);
+        
+        await this.sendRotationFailureAlert(
+          failure.userId,
+          failure._count.id,
+          severity
+        );
+      }
+    } catch (error) {
+      console.error('Error monitoring failed rotations:', error);
+      await this.sendSystemAlert('ROTATION_FAILURE_MONITORING_FAILED', error);
+    }
+  }
+
+  // Monitor rotation delays
+  async monitorRotationDelays(): Promise<void> {
+    try {
+      const scheduledRotations = await prisma.scheduledNotification.findMany({
+        where: {
+          type: 'KEY_ROTATION',
+          status: 'PENDING',
+          scheduledFor: {
+            lt: new Date()
+          }
+        },
+        include: {
+          user: true
+        }
+      });
+
+      for (const rotation of scheduledRotations) {
+        const delay = Date.now() - rotation.scheduledFor.getTime();
+        const severity = this.determineDelaySeverity(delay);
+        
+        await this.sendRotationDelayAlert(
+          rotation.user.id,
+          delay,
+          severity
+        );
+      }
+    } catch (error) {
+      console.error('Error monitoring rotation delays:', error);
+      await this.sendSystemAlert('ROTATION_DELAY_MONITORING_FAILED', error);
+    }
+  }
+
+  // Determine alert severity based on key age
+  private determineKeySeverity(keyAge: number): 'WARNING' | 'CRITICAL' {
+    return keyAge >= KeyRotationMonitor.THRESHOLDS.KEY_AGE_CRITICAL
+      ? 'CRITICAL'
+      : 'WARNING';
+  }
+
+  // Determine alert severity based on failure count
+  private determineFailureSeverity(failureCount: number): 'WARNING' | 'CRITICAL' {
+    return failureCount >= KeyRotationMonitor.THRESHOLDS.FAILED_ROTATIONS_CRITICAL
+      ? 'CRITICAL'
+      : 'WARNING';
+  }
+
+  // Determine alert severity based on delay
+  private determineDelaySeverity(delay: number): 'WARNING' | 'CRITICAL' {
+    return delay >= KeyRotationMonitor.THRESHOLDS.ROTATION_DELAY_CRITICAL
+      ? 'CRITICAL'
+      : 'WARNING';
+  }
+
+  // Send key age alert
   private async sendKeyAgeAlert(
     userId: string,
     keyType: 'MASTER_KEY' | 'DOCUMENT_KEY',
@@ -108,7 +192,7 @@ export class KeyRotationMonitor {
       template: 'key-rotation-alert',
       data: {
         keyType,
-        keyAge: Math.floor(keyAge / (24 * 60 * 60 * 1000)),
+        keyAge: Math.floor(keyAge / (24 * 60 * 60 * 1000)), // Convert to days
         documentId,
         severity
       }
@@ -151,13 +235,142 @@ export class KeyRotationMonitor {
     });
   }
 
-  private determineKeySeverity(keyAge: number): 'WARNING' | 'CRITICAL' {
-    return keyAge >= KeyRotationMonitor.THRESHOLDS.KEY_AGE_CRITICAL
-      ? 'CRITICAL'
-      : 'WARNING';
+  // Send rotation failure alert
+  private async sendRotationFailureAlert(
+    userId: string,
+    failureCount: number,
+    severity: 'WARNING' | 'CRITICAL' = 'WARNING'
+  ): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) return;
+
+    // Send email alert
+    await this.emailService.sendEmail({
+      to: user.email,
+      template: 'rotation-failure-alert',
+      data: {
+        failureCount,
+        severity
+      }
+    });
+
+    // Send in-app notification
+    await this.wsServer.sendNotification(userId, {
+      type: 'ROTATION_FAILURE_ALERT',
+      content: `Key rotation failed ${failureCount} times in the last 24 hours`,
+      severity,
+      metadata: {
+        failureCount
+      }
+    });
+
+    // Send SNS alert for critical severity
+    if (severity === 'CRITICAL') {
+      await this.sendSNSAlert('ROTATION_FAILURE_CRITICAL', {
+        userId,
+        failureCount
+      });
+    }
+
+    // Log alert
+    await prisma.securityLog.create({
+      data: {
+        userId,
+        eventType: 'ROTATION_FAILURE_ALERT',
+        status: severity,
+        details: {
+          failureCount
+        }
+      }
+    });
   }
 
-  private async sendSNSAlert(type: string, data: any): Promise<void> {
+  // Send rotation delay alert
+  private async sendRotationDelayAlert(
+    userId: string,
+    delay: number,
+    severity: 'WARNING' | 'CRITICAL' = 'WARNING'
+  ): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) return;
+
+    // Send email alert
+    await this.emailService.sendEmail({
+      to: user.email,
+      template: 'rotation-delay-alert',
+      data: {
+        delay: Math.floor(delay / (24 * 60 * 60 * 1000)), // Convert to days
+        severity
+      }
+    });
+
+    // Send in-app notification
+    await this.wsServer.sendNotification(userId, {
+      type: 'ROTATION_DELAY_ALERT',
+      content: `Key rotation is delayed by ${Math.floor(delay / (24 * 60 * 60 * 1000))} days`,
+      severity,
+      metadata: {
+        delay
+      }
+    });
+
+    // Send SNS alert for critical severity
+    if (severity === 'CRITICAL') {
+      await this.sendSNSAlert('ROTATION_DELAY_CRITICAL', {
+        userId,
+        delay
+      });
+    }
+
+    // Log alert
+    await prisma.securityLog.create({
+      data: {
+        userId,
+        eventType: 'ROTATION_DELAY_ALERT',
+        status: severity,
+        details: {
+          delay
+        }
+      }
+    });
+  }
+
+  // Send system alert
+  private async sendSystemAlert(
+    type: string,
+    error: any
+  ): Promise<void> {
+    // Send SNS alert
+    await this.sendSNSAlert(type, {
+      error: error.message,
+      stack: error.stack
+    });
+
+    // Log alert
+    await prisma.securityLog.create({
+      data: {
+        eventType: 'SYSTEM_ALERT',
+        status: 'ERROR',
+        details: {
+          type,
+          error: error.message,
+          stack: error.stack
+        }
+      }
+    });
+  }
+
+  // Send SNS alert
+  private async sendSNSAlert(
+    type: string,
+    data: any
+  ): Promise<void> {
     try {
       await sns.publish({
         TopicArn: process.env.AWS_SNS_ALERT_TOPIC,
@@ -179,6 +392,7 @@ export class KeyRotationMonitor {
   }
 }
 
+// Schedule monitoring checks
 export const scheduleKeyMonitoring = (
   monitor: KeyRotationMonitor
 ): void => {
@@ -192,5 +406,29 @@ export const scheduleKeyMonitoring = (
       }
     },
     12 * 60 * 60 * 1000
+  );
+
+  // Check failed rotations every hour
+  setInterval(
+    async () => {
+      try {
+        await monitor.monitorFailedRotations();
+      } catch (error) {
+        console.error('Failed rotation monitoring error:', error);
+      }
+    },
+    60 * 60 * 1000
+  );
+
+  // Check rotation delays every 6 hours
+  setInterval(
+    async () => {
+      try {
+        await monitor.monitorRotationDelays();
+      } catch (error) {
+        console.error('Rotation delay monitoring error:', error);
+      }
+    },
+    6 * 60 * 60 * 1000
   );
 };

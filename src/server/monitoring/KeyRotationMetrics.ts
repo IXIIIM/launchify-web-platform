@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 // src/server/monitoring/KeyRotationMetrics.ts
-=======
->>>>>>> feature/security-implementation
 import { PrismaClient } from '@prisma/client';
 import { startOfDay, subDays, format } from 'date-fns';
 import { S3 } from 'aws-sdk';
@@ -10,6 +7,7 @@ const prisma = new PrismaClient();
 const s3 = new S3();
 
 export class KeyRotationMetrics {
+  // Report generation intervals
   private static readonly INTERVALS = {
     DAILY: 1,
     WEEKLY: 7,
@@ -17,6 +15,7 @@ export class KeyRotationMetrics {
     QUARTERLY: 90
   };
 
+  // Generate comprehensive key rotation report
   async generateReport(
     startDate: Date,
     endDate: Date
@@ -57,55 +56,65 @@ export class KeyRotationMetrics {
     };
   }
 
-  private async calculateKeyAgeMetrics(startDate: Date, endDate: Date) {
-    const [masterKeys, documentKeys] = await Promise.all([
-      prisma.securitySettings.findMany({
-        where: {
-          lastKeyRotation: {
-            gte: startDate,
-            lte: endDate
-          }
-        },
-        select: {
-          lastKeyRotation: true
+  // Calculate key age metrics
+  private async calculateKeyAgeMetrics(
+    startDate: Date,
+    endDate: Date
+  ): Promise<any> {
+    // Master key ages
+    const masterKeyAges = await prisma.securitySettings.findMany({
+      where: {
+        lastKeyRotation: {
+          gte: startDate,
+          lte: endDate
         }
-      }),
-      prisma.documentEncryption.findMany({
-        where: {
-          lastRotation: {
-            gte: startDate,
-            lte: endDate
-          }
-        },
-        select: {
-          lastRotation: true
-        }
-      })
-    ]);
+      },
+      select: {
+        lastKeyRotation: true
+      }
+    });
 
+    // Document key ages
+    const documentKeyAges = await prisma.documentEncryption.findMany({
+      where: {
+        lastRotation: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      select: {
+        lastRotation: true
+      }
+    });
+
+    // Calculate age distributions
     const masterKeyDistribution = this.calculateAgeDistribution(
-      masterKeys.map(k => k.lastKeyRotation)
+      masterKeyAges.map(k => k.lastKeyRotation)
     );
 
     const documentKeyDistribution = this.calculateAgeDistribution(
-      documentKeys.map(k => k.lastRotation)
+      documentKeyAges.map(k => k.lastRotation)
     );
 
     return {
       masterKeys: {
         distribution: masterKeyDistribution,
-        averageAge: this.calculateAverageAge(masterKeys.map(k => k.lastKeyRotation)),
-        oldestKey: this.findOldestKey(masterKeys.map(k => k.lastKeyRotation))
+        averageAge: this.calculateAverageAge(masterKeyAges.map(k => k.lastKeyRotation)),
+        oldestKey: this.findOldestKey(masterKeyAges.map(k => k.lastKeyRotation))
       },
       documentKeys: {
         distribution: documentKeyDistribution,
-        averageAge: this.calculateAverageAge(documentKeys.map(k => k.lastRotation)),
-        oldestKey: this.findOldestKey(documentKeys.map(k => k.lastRotation))
+        averageAge: this.calculateAverageAge(documentKeyAges.map(k => k.lastRotation)),
+        oldestKey: this.findOldestKey(documentKeyAges.map(k => k.lastRotation))
       }
     };
   }
 
-  private async calculateRotationMetrics(startDate: Date, endDate: Date) {
+  // Calculate rotation metrics
+  private async calculateRotationMetrics(
+    startDate: Date,
+    endDate: Date
+  ): Promise<any> {
     const rotationLogs = await prisma.securityLog.findMany({
       where: {
         eventType: 'KEY_ROTATION',
@@ -116,6 +125,7 @@ export class KeyRotationMetrics {
       }
     });
 
+    // Calculate success rates
     const successfulRotations = rotationLogs.filter(
       log => log.status === 'SUCCESS'
     ).length;
@@ -124,17 +134,29 @@ export class KeyRotationMetrics {
       log => log.status === 'FAILURE'
     ).length;
 
+    // Calculate rotation trends
+    const dailyRotations = this.calculateDailyTrends(
+      rotationLogs,
+      startDate,
+      endDate
+    );
+
     return {
       totalRotations: rotationLogs.length,
       successfulRotations,
       failedRotations,
       successRate: (successfulRotations / rotationLogs.length) * 100,
-      dailyTrends: this.calculateDailyTrends(rotationLogs, startDate, endDate),
+      dailyTrends: dailyRotations,
       averageRotationsPerDay: rotationLogs.length / this.daysBetween(startDate, endDate)
     };
   }
 
-  private async calculateComplianceMetrics(startDate: Date, endDate: Date) {
+  // Calculate compliance metrics
+  private async calculateComplianceMetrics(
+    startDate: Date,
+    endDate: Date
+  ): Promise<any> {
+    // Get all keys
     const [masterKeys, documentKeys] = await Promise.all([
       prisma.securitySettings.findMany({
         select: {
@@ -148,6 +170,7 @@ export class KeyRotationMetrics {
       })
     ]);
 
+    // Calculate compliance percentages
     const masterKeyCompliance = this.calculateCompliancePercentage(
       masterKeys.map(k => k.lastKeyRotation)
     );
@@ -156,15 +179,33 @@ export class KeyRotationMetrics {
       documentKeys.map(k => k.lastRotation)
     );
 
+    // Calculate alerts and violations
+    const alerts = await prisma.securityLog.count({
+      where: {
+        eventType: {
+          in: ['KEY_AGE_ALERT', 'ROTATION_FAILURE_ALERT', 'ROTATION_DELAY_ALERT']
+        },
+        createdAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      }
+    });
+
     return {
       masterKeyCompliance,
       documentKeyCompliance,
       overallCompliance: (masterKeyCompliance + documentKeyCompliance) / 2,
+      alerts,
       complianceTrend: await this.calculateComplianceTrend(startDate, endDate)
     };
   }
 
-  private async calculatePerformanceMetrics(startDate: Date, endDate: Date) {
+  // Calculate performance metrics
+  private async calculatePerformanceMetrics(
+    startDate: Date,
+    endDate: Date
+  ): Promise<any> {
     const rotationLogs = await prisma.securityLog.findMany({
       where: {
         eventType: 'KEY_ROTATION',
@@ -180,6 +221,7 @@ export class KeyRotationMetrics {
       }
     });
 
+    // Calculate rotation durations
     const durations = rotationLogs
       .map(log => this.extractRotationDuration(log.details))
       .filter(Boolean);
@@ -193,6 +235,7 @@ export class KeyRotationMetrics {
     };
   }
 
+  // Helper: Calculate age distribution
   private calculateAgeDistribution(dates: Date[]): Record<string, number> {
     const now = new Date();
     const distribution = {
@@ -213,36 +256,20 @@ export class KeyRotationMetrics {
     return distribution;
   }
 
-  private calculateTimeDistribution(durations: number[]): Record<string, number> {
-    const distribution = {
-      '0-1min': 0,
-      '1-5min': 0,
-      '5-15min': 0,
-      '15+min': 0
-    };
-
-    durations.forEach(duration => {
-      const minutes = duration / (60 * 1000);
-      if (minutes <= 1) distribution['0-1min']++;
-      else if (minutes <= 5) distribution['1-5min']++;
-      else if (minutes <= 15) distribution['5-15min']++;
-      else distribution['15+min']++;
-    });
-
-    return distribution;
-  }
-
+  // Helper: Calculate average age
   private calculateAverageAge(dates: Date[]): number {
     const now = new Date();
     const ages = dates.map(date => this.daysBetween(date, now));
     return this.calculateAverage(ages);
   }
 
+  // Helper: Find oldest key
   private findOldestKey(dates: Date[]): number {
     const now = new Date();
     return Math.max(...dates.map(date => this.daysBetween(date, now)));
   }
 
+  // Helper: Calculate daily trends
   private calculateDailyTrends(
     logs: any[],
     startDate: Date,
@@ -262,6 +289,7 @@ export class KeyRotationMetrics {
     return trends;
   }
 
+  // Helper: Calculate compliance percentage
   private calculateCompliancePercentage(dates: Date[]): number {
     const now = new Date();
     const compliantKeys = dates.filter(
@@ -270,6 +298,7 @@ export class KeyRotationMetrics {
     return (compliantKeys / dates.length) * 100;
   }
 
+  // Helper: Calculate compliance trend
   private async calculateComplianceTrend(
     startDate: Date,
     endDate: Date
@@ -316,27 +345,27 @@ export class KeyRotationMetrics {
     return trend;
   }
 
-  private extractRotationDuration(details: any): number {
-    if (!details || !details.startTime || !details.endTime) return 0;
-    return new Date(details.endTime).getTime() - new Date(details.startTime).getTime();
+  // Helper: Calculate time distribution
+  private calculateTimeDistribution(durations: number[]): Record<string, number> {
+    const distribution = {
+      '0-1min': 0,
+      '1-5min': 0,
+      '5-15min': 0,
+      '15+min': 0
+    };
+
+    durations.forEach(duration => {
+      const minutes = duration / (60 * 1000);
+      if (minutes <= 1) distribution['0-1min']++;
+      else if (minutes <= 5) distribution['1-5min']++;
+      else if (minutes <= 15) distribution['5-15min']++;
+      else distribution['15+min']++;
+    });
+
+    return distribution;
   }
 
-  private calculatePercentile(numbers: number[], percentile: number): number {
-    const sorted = [...numbers].sort((a, b) => a - b);
-    const index = Math.ceil((percentile / 100) * sorted.length) - 1;
-    return sorted[index];
-  }
-
-  private calculateAverage(numbers: number[]): number {
-    return numbers.reduce((a, b) => a + b, 0) / numbers.length;
-  }
-
-  private daysBetween(date1: Date, date2: Date): number {
-    return Math.floor(
-      (date2.getTime() - date1.getTime()) / (24 * 60 * 60 * 1000)
-    );
-  }
-
+  // Helper: Store report in S3
   private async storeReport(reportId: string, data: any): Promise<void> {
     await s3.putObject({
       Bucket: process.env.AWS_S3_REPORTS_BUCKET!,
@@ -345,8 +374,34 @@ export class KeyRotationMetrics {
       ContentType: 'application/json'
     }).promise();
   }
+
+  // Helper: Calculate days between dates
+  private daysBetween(date1: Date, date2: Date): number {
+    return Math.floor(
+      (date2.getTime() - date1.getTime()) / (24 * 60 * 60 * 1000)
+    );
+  }
+
+  // Helper: Calculate average
+  private calculateAverage(numbers: number[]): number {
+    return numbers.reduce((a, b) => a + b, 0) / numbers.length;
+  }
+
+  // Helper: Calculate percentile
+  private calculatePercentile(numbers: number[], percentile: number): number {
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+    return sorted[index];
+  }
+
+  // Helper: Extract rotation duration
+  private extractRotationDuration(details: any): number {
+    if (!details || !details.startTime || !details.endTime) return 0;
+    return new Date(details.endTime).getTime() - new Date(details.startTime).getTime();
+  }
 }
 
+// Schedule reports
 export const scheduleReports = async (metrics: KeyRotationMetrics): Promise<void> => {
   // Daily reports
   setInterval(

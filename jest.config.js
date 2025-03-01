@@ -1,3 +1,5 @@
+// jest.config.js
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -39,5 +41,8 @@ module.exports = {
     'ts-jest': {
       tsconfig: 'tsconfig.json'
     }
-  }
+  },
+  verbose: true,
+  detectOpenHandles: true,
+  forceExit: true
 };

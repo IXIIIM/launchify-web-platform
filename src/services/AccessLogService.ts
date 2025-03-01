@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
 // src/services/AccessLogService.ts
-=======
->>>>>>> feature/security-implementation
->>>>>>> main
+
 import { PrismaClient } from '@prisma/client';
 import { SNS } from 'aws-sdk';
 
@@ -19,9 +14,6 @@ interface AccessLogEvent {
 }
 
 export class AccessLogService {
-<<<<<<< HEAD
-  // Rest of the file content...
-=======
   private prisma: PrismaClient;
   private sns: SNS;
   private readonly ALERT_TOPIC_ARN: string;
@@ -34,10 +26,8 @@ export class AccessLogService {
 
   async logAccess(event: AccessLogEvent): Promise<void> {
     try {
-<<<<<<< HEAD
+
       // Log to database
-=======
->>>>>>> feature/security-implementation
       await this.prisma.accessLog.create({
         data: {
           userId: event.userId,
@@ -51,7 +41,6 @@ export class AccessLogService {
         }
       });
 
-<<<<<<< HEAD
       // Send alert for suspicious activity
       if (!event.success && this.isSuspiciousActivity(event)) {
         await this.sendSecurityAlert(event);
@@ -64,18 +53,10 @@ export class AccessLogService {
     } catch (error) {
       console.error('Error logging access:', error);
       // Don't throw - logging should not interrupt main flow
-=======
-      if (!event.success && this.isSuspiciousActivity(event)) {
-        await this.sendSecurityAlert(event);
-      }
-    } catch (error) {
-      console.error('Error logging access:', error);
->>>>>>> feature/security-implementation
     }
   }
 
   private isSuspiciousActivity(event: AccessLogEvent): boolean {
-<<<<<<< HEAD
     // Check for known suspicious patterns
     const suspiciousPatterns = [
       // Trying to access admin resources
@@ -83,11 +64,6 @@ export class AccessLogService {
       // Attempting to access another user's private data
       event.resource === 'profile' && event.metadata?.targetUserId !== event.userId,
       // Multiple failed verification attempts
-=======
-    const suspiciousPatterns = [
-      event.resource.includes('admin') && !event.success,
-      event.resource === 'profile' && event.metadata?.targetUserId !== event.userId,
->>>>>>> feature/security-implementation
       event.action === 'verification' && !event.success && event.metadata?.attemptCount > 3
     ];
 
@@ -122,7 +98,6 @@ export class AccessLogService {
       console.error('Error sending security alert:', error);
     }
   }
-<<<<<<< HEAD
 
   private async trackFailedAttempt(event: AccessLogEvent): Promise<void> {
     try {
@@ -229,7 +204,4 @@ export class AccessLogService {
       return acc;
     }, {});
   }
-=======
->>>>>>> feature/security-implementation
 }
->>>>>>> main

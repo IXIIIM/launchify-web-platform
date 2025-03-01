@@ -1,7 +1,5 @@
-<<<<<<< HEAD
 // src/components/admin/PermissionManager.tsx
-=======
->>>>>>> feature/security-implementation
+
 import React, { useState, useEffect } from 'react';
 import { SubscriptionTier, UserType, VerificationLevel } from '@/types/user';
 
@@ -47,10 +45,7 @@ export const PermissionManager: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to update permission');
       
-<<<<<<< HEAD
       // Refresh permissions list
-=======
->>>>>>> feature/security-implementation
       await fetchPermissions();
       setEditingPermission(null);
     } catch (error) {
@@ -58,7 +53,6 @@ export const PermissionManager: React.FC = () => {
     }
   };
 
-<<<<<<< HEAD
   const handleCreatePermission = async (permission: Omit<Permission, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const response = await fetch('/api/admin/permissions', {
@@ -73,7 +67,6 @@ export const PermissionManager: React.FC = () => {
       await fetchPermissions();
     } catch (error) {
       console.error('Error creating permission:', error);
-=======
   const handleDeletePermission = async (id: string) => {
     if (!confirm('Are you sure you want to delete this permission?')) return;
     
@@ -87,7 +80,6 @@ export const PermissionManager: React.FC = () => {
       await fetchPermissions();
     } catch (error) {
       console.error('Error deleting permission:', error);
->>>>>>> feature/security-implementation
     }
   };
 
@@ -152,9 +144,6 @@ export const PermissionManager: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {permission.verificationLevel || 'None'}
                   </td>
-<<<<<<< HEAD
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text
-=======
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                     <button
                       onClick={() => setEditingPermission(permission)}
@@ -178,4 +167,3 @@ export const PermissionManager: React.FC = () => {
     </div>
   );
 };
->>>>>>> feature/security-implementation
