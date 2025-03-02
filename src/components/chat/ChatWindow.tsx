@@ -1,13 +1,14 @@
-<<<<<<< HEAD
 // src/components/chat/ChatWindow.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowLeft, Paperclip, Image } from 'lucide-react';
+import { Send, ArrowLeft, Paperclip, Image, X } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FileUpload, FilePreview, FileMessage, FileList } from './components';
 import { Entrepreneur, Funder } from '@/types/user';
 
 interface Message {
@@ -16,6 +17,8 @@ interface Message {
   senderId: string;
   timestamp: string;
   status: 'sending' | 'sent' | 'delivered' | 'read';
+  hasFiles?: boolean;
+  files?: any[];
 }
 
 interface ChatWindowProps {
@@ -26,6 +29,10 @@ interface ChatWindowProps {
 const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [isShowingFiles, setIsShowingFiles] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showAttachmentOptions, setShowAttachmentOptions] = useState(false);
@@ -71,6 +78,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
         scrollToBottom();
       } catch (error) {
         console.error('Error fetching messages:', error);
+        setError('Error loading messages');
       } finally {
         setIsLoading(false);
       }
@@ -111,7 +119,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && files.length === 0) return;
 
     const tempId = Date.now().toString();
     const tempMessage: Message = {
@@ -127,6 +135,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
     scrollToBottom();
 
     try {
+      // If there are files, upload them first
+      if (files.length > 0) {
+        await uploadFiles();
+      }
+
       const response = await fetch(`/api/messages/${participant.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,23 +165,75 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
     }
   };
 
-  const handleAttachment = async (type: 'file' | 'image') => {
-    setShowAttachmentOptions(false);
-    // Implement file/image upload
+  const handleFilesSelected = async (selectedFiles: File[]) => {
+    // Update files state
+    setFiles(prev => [...prev, ...selectedFiles]);
   };
 
-  const MessageStatusIcon = ({ status }: { status: Message['status'] }) => {
-    switch (status) {
-      case 'sending':
-        return <div className="w-3 h-3 rounded-full border-2 border-t-transparent border-gray-400 animate-spin" />;
-      case 'sent':
-        return <div className="w-2 h-2 rounded-full bg-gray-400" />;
-      case 'delivered':
-        return <div className="w-2 h-2 rounded-full bg-blue-400" />;
-      case 'read':
-        return <div className="w-2 h-2 rounded-full bg-green-400" />;
-      default:
-        return null;
+  const handleRemoveFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async () => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/chat/${participant.id}/files`);
+      
+      // Add auth token
+      const token = localStorage.getItem('token');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      // Track upload progress
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100;
+          setUploadProgress(prev => ({
+            ...prev,
+            [files[0].name]: progress // Simplifying to track overall progress
+          }));
+        }
+      };
+
+      // Handle response
+      xhr.onload = async () => {
+        if (xhr.status === 200) {
+          const uploadedFiles = JSON.parse(xhr.responseText);
+          // Files are attached to message via backend
+          setFiles([]);
+          setUploadProgress({});
+        } else {
+          throw new Error('Upload failed');
+        }
+      };
+
+      xhr.onerror = () => {
+        throw new Error('Upload failed');
+      };
+
+      xhr.send(formData);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      setError('Error uploading files');
+    }
+  };
+
+  const handleDownloadFile = async (fileId: string) => {
+    try {
+      const response = await fetch(`/api/chat/files/${fileId}`);
+      if (!response.ok) throw new Error('Failed to get download URL');
+      
+      const { url } = await response.json();
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setError('Error downloading file');
     }
   };
 
@@ -205,6 +270,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
             </p>
           )}
         </div>
+        <button
+          onClick={() => setIsShowingFiles(!isShowingFiles)}
+          className="text-gray-500 hover:text-gray-700 ml-auto"
+        >
+          {isShowingFiles ? 'Hide Files' : 'Show Files'}
+        </button>
       </div>
 
       {/* Messages */}
@@ -212,40 +283,84 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
         className="flex-1 overflow-y-auto p-4 space-y-4"
         style={{ paddingBottom: isMobile ? `${keyboardHeight}px` : undefined }}
       >
-        {messages.map((message, index) => (
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${
               message.senderId === 'currentUser' ? 'justify-end' : 'justify-start'
             }`}
           >
-            <div
-              className={`max-w-[70%] p-3 rounded-lg space-y-1 ${
-                message.senderId === 'currentUser'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border'
-              }`}
-            >
-              <p className="break-words">{message.content}</p>
-              <div className="flex items-center justify-end space-x-1">
-                <span className="text-xs opacity-75">
-                  {new Date(message.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-                {message.senderId === 'currentUser' && (
-                  <MessageStatusIcon status={message.status} />
+            {message.hasFiles ? (
+              <div className="space-y-2">
+                {message.files.map((file: any) => (
+                  <FileMessage
+                    key={file.id}
+                    file={file}
+                    isOwn={message.senderId === 'currentUser'}
+                    onDownload={() => handleDownloadFile(file.id)}
+                  />
+                ))}
+                {message.content && (
+                  <p className={`text-sm ${
+                    message.senderId === 'currentUser'
+                      ? 'text-gray-200'
+                      : 'text-gray-500'
+                  }`}>
+                    {message.content}
+                  </p>
                 )}
               </div>
-            </div>
+            ) : (
+              <div
+                className={`max-w-[70%] p-3 rounded-lg space-y-1 ${
+                  message.senderId === 'currentUser'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border'
+                }`}
+              >
+                <p className="break-words">{message.content}</p>
+                <div className="flex items-center justify-end space-x-1">
+                  <span className="text-xs opacity-75">
+                    {new Date(message.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                  {message.senderId === 'currentUser' && (
+                    <MessageStatusIcon status={message.status} />
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* File Upload Preview */}
+      {files.length > 0 && (
+        <div className="p-4 border-t bg-gray-50">
+          <div className="space-y-2">
+            {files.map((file, index) => (
+              <FilePreview
+                key={index}
+                file={file}
+                onRemove={() => handleRemoveFile(index)}
+                uploadProgress={uploadProgress[file.name]}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
-      <div className="bg-white border-t p-4">
+      <form onSubmit={handleSend} className="bg-white border-t p-4">
         <div className="flex items-end space-x-2">
           <Button
             variant="ghost"
@@ -270,13 +385,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && files.length === 0}
             className="px-4"
           >
             <Send className="h-5 w-5" />
           </Button>
         </div>
-      </div>
+
+        {/* Hidden file input */}
+        <FileUpload
+          onUpload={handleFilesSelected}
+          maxFiles={5}
+        />
+      </form>
 
       {/* Attachment Options Bottom Sheet */}
       <BottomSheet
@@ -301,11 +422,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ participant, onBack }) => {
           </button>
         </div>
       </BottomSheet>
+
+      {/* Files Sidebar */}
+      {isShowingFiles && (
+        <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l shadow-lg">
+          <div className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold">Shared Files</h3>
+              <button
+                onClick={() => setIsShowingFiles(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            <FileList
+              files={messages
+                .filter(m => m.hasFiles)
+                .flatMap(m => m.files)}
+              onDownload={handleDownloadFile}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ChatWindow;
-=======
-// Content of mobile-optimized ChatWindow.tsx as shown above
->>>>>>> feature/security-implementation

@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './components/theme/ThemeProvider';

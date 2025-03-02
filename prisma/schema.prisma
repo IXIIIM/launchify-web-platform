@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // prisma/schema.prisma
 // This is your Prisma schema file
 datasource db {
@@ -17,6 +16,8 @@ model User {
   userType           String            // 'entrepreneur' or 'funder'
   subscriptionTier   String            // Basic, Chrome, Bronze, Silver, Gold, Platinum
   verificationLevel  String            // None, BusinessPlan, UseCase, etc.
+  securityStatus     String            @default("ACTIVE") // ACTIVE, LOCKED, SUSPENDED
+  lastSecurityIncident DateTime?
   emailVerified      Boolean           @default(false)
   phoneVerified      Boolean           @default(false)
   verificationToken  String?
@@ -26,9 +27,26 @@ model User {
   stripeCustomerId   String?
   stripeConnectId    String?           // For handling direct payments
 
-  // Profile Relations
+  // Relations
   entrepreneurProfile EntrepreneurProfile?
   funderProfile      FunderProfile?
+  matches            Match[]           @relation("UserMatches")
+  matchedWith        Match[]           @relation("MatchedWithUsers")
+  messages           Message[]
+  verificationRequests VerificationRequest[]
+  profileBoosts      ProfileBoost[]
+  accessLogs         AccessLog[]
+  profileViews       ProfileView[]     @relation("ViewedProfiles")
+  viewedBy           ProfileView[]     @relation("Viewers")
+  preferredTeamSize        Int?
+  preferredSkills         Json[]      // Array of desired skills
+  preferredMarketSize     String?
+  preferredTimeline       String?
+  preferredStages         String[]    // Array of funding stages of interest
+  preferredBusinessTypes  String[]    // Array of B2B, B2C, etc.
+  investmentHistory       InvestmentHistory[]
+  successMetrics         SuccessMetric[]
+  focusIndustries        IndustryFocus[]
   
   // Image Relations
   images             Image[]
@@ -54,6 +72,77 @@ model User {
   
   // Location Relation
   location           UserLocation?
+
+  // Security Relations
+  sessions           Session[]
+  securityLogs       SecurityLog[]
+  securitySettings   SecuritySettings?
+
+  // Error Logging Relations
+  errorLogs          ErrorLog[]
+  resolvedAlerts     ErrorAlert[]      @relation("ErrorAlertResolver")
+
+  // Document Relations
+  createdVersions     DocumentVersion[]  // Versions created by this user
+}
+
+// Security Models
+model Session {
+  id          String      @id @default(uuid())
+  userId      String
+  token       String      @unique
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  user        User        @relation(fields: [userId], references: [id])
+}
+
+model TokenBlacklist {
+  id          String      @id @default(uuid())
+  token       String      @unique
+  reason      String?
+  createdAt   DateTime    @default(now())
+}
+
+model SecurityLog {
+  id          String      @id @default(uuid())
+  userId      String
+  eventType   String      // LOGIN_ATTEMPT, PASSWORD_CHANGE, etc.
+  status      String      // SUCCESS, FAILURE
+  ipAddress   String?
+  userAgent   String?
+  details     Json?
+  createdAt   DateTime    @default(now())
+  
+  user        User        @relation(fields: [userId], references: [id])
+}
+
+model SecuritySettings {
+  id                      String    @id @default(uuid())
+  userId                  String    @unique
+  twoFactorEnabled       Boolean   @default(false)
+  twoFactorSecret       String?
+  loginNotifications     Boolean   @default(true)
+  ipWhitelist           String[]
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  
+  user                  User       @relation(fields: [userId], references: [id])
+
+  masterKeyId  String?   // Reference to encrypted master key in KMS/S3
+}
+
+// Key deletion schedule
+model KeyDeletionSchedule {
+  id                String    @id @default(uuid())
+  keyId             String    @unique
+  scheduledDeletion DateTime
+  executed          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model Image {
@@ -112,6 +201,17 @@ model EntrepreneurProfile {
   profitabilityTimeframe String
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  teamSize          Int?
+  skills            Json[]            // Array of {name: string, category: string, level: number}
+  targetMarketSize  String?
+  timeline          String?
+  fundingStage     String?
+  pitchDeck        String?           // URL to pitch deck
+  projectTimeline   Json?             // Detailed timeline/milestones
+  competitors       String[]
+  patentStatus     String?
+  teamMembers      TeamMember[]
+  successMetrics   SuccessMetric[]
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -131,7 +231,7 @@ model FunderProfile {
   investmentPreferences Json    // { timeframe: string, commitmentLength: string }
   certifications      String[]
   createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -146,11 +246,19 @@ model Match {
   fraudRiskScore     Float?
   matchQuality       String?  // HIGH, MEDIUM, LOW
   createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime @default(now())
 
   user               User     @relation("UserMatches", fields: [userId], references: [id])
   matchedWith        User     @relation("MatchedWithUsers", fields: [matchedWithId], references: [id])
   messages           Message[]
+
+  initialScore    Float
+  finalScore      Float
+  matchReasons    String[]
+  commonIndustries String[]
+  status          String      // pending, accepted, rejected, expired
+  statusHistory   MatchStatus[]
+  feedback        MatchFeedback?
 }
 
 model Message {
@@ -161,7 +269,7 @@ model Message {
   content        String
   read           Boolean  @default(false)
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime @default(now())
 
   match     Match    @relation(fields: [matchId], references: [id])
   sender    User     @relation("SentMessages", fields: [senderId], references: [id])
@@ -176,7 +284,7 @@ model Subscription {
   stripeId        String?
   currentPeriodEnd DateTime
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -188,7 +296,7 @@ model Notification {
   content   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -203,7 +311,7 @@ model Review {
   status        String      // PENDING, PUBLISHED, FLAGGED, REMOVED
   flags         Flag[]      // Related flags
   createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  updatedAt     DateTime    @default(now())
   
   // Relations
   reviewer      User        @relation("ReviewsGiven", fields: [reviewerId], references: [id])
@@ -220,7 +328,7 @@ model Flag {
   reason        String
   status        String      // PENDING, REVIEWED, DISMISSED
   createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  updatedAt     DateTime    @default(now())
 
   // Relations
   review        Review      @relation(fields: [reviewId], references: [id])
@@ -237,26 +345,26 @@ model ReviewEncryption {
   algorithm     String      // Encryption algorithm used
   lastRotation  DateTime    @default(now())
   createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  updatedAt     DateTime    @default(now())
   
   // Relation
   review        Review      @relation(fields: [reviewId], references: [id])
 }
 
 model Document {
-  id            String      @id @default(uuid())
-  userId        String
-  title         String
-  filename      String
-  fileType      String
-  fileSize      Int
-  path          String
-  status        String      // PENDING, VERIFIED, REJECTED
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  // Encryption relation
-  encryption    DocumentEncryption?
+  id                String              @id @default(uuid())
+  name              String
+  mimeType          String
+  size              Int
+  ownerId           String
+  currentVersionId  String?            // Reference to current version
+  uploadedAt        DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  encryption        DocumentEncryption?
+  versions          DocumentVersion[]
+  owner             User                @relation("OwnedDocuments", fields: [ownerId], references: [id])
+  sharedWith        User[]              @relation("SharedDocuments")
+  currentVersion    DocumentVersion?    @relation("CurrentVersion", fields: [currentVersionId], references: [id])
 }
 
 model DocumentEncryption {
@@ -269,9 +377,27 @@ model DocumentEncryption {
   algorithm     String    // Encryption algorithm used
   lastRotation  DateTime  @default(now())
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime  @default(now())
   
   document      Document  @relation(fields: [documentId], references: [id])
+}
+
+model DocumentVersion {
+  id            String    @id @default(uuid())
+  documentId    String
+  versionNumber Int
+  createdAt     DateTime  @default(now())
+  createdById   String
+  s3Key         String    // Path in S3
+  changes       String?   // Description of changes
+  size          Int
+  checksum      String
+  
+  document      Document  @relation(fields: [documentId], references: [id])
+  creator       User      @relation(fields: [createdById], references: [id])
+  currentFor    Document? @relation("CurrentVersion")
+
+  @@unique([documentId, versionNumber])
 }
 
 model UserLocation {
@@ -283,7 +409,7 @@ model UserLocation {
   state     String?
   country   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -314,7 +440,7 @@ model Milestone {
   status          String    // PENDING, APPROVED, RELEASED, DISPUTED
   proofOfWork     String?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime  @default(now())
 
   escrowAccount   EscrowAccount @relation(fields: [escrowAccountId], references: [id])
 }
@@ -327,21 +453,12 @@ model EscrowTransaction {
   status          String    // PENDING, COMPLETED, FAILED
   stripePaymentId String?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime  @default(now())
 
   escrowAccount   EscrowAccount @relation(fields: [escrowAccountId], references: [id])
-=======
-generator client {
-  provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-// Existing models remain unchanged...
-
+// Error Logging Models
 enum ErrorSeverity {
   INFO
   WARNING
@@ -359,7 +476,7 @@ model ErrorLog {
   userId    String?
   user      User?        @relation(fields: [userId], references: [id])
   createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  updatedAt DateTime     @default(now())
 
   @@index([severity])
   @@index([component])
@@ -378,18 +495,137 @@ model ErrorAlert {
   resolvedBy String?
   user       User?        @relation("ErrorAlertResolver", fields: [resolvedBy], references: [id])
   createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  updatedAt  DateTime     @default(now())
 
   @@index([severity])
   @@index([resolved])
   @@index([createdAt])
 }
 
-// Add relations to User model
-model User {
-  // Existing fields remain...
-  
-  errorLogs        ErrorLog[]
-  resolvedAlerts   ErrorAlert[]  @relation("ErrorAlertResolver")
->>>>>>> feature/security-implementation
+model VerificationRequest {
+  id          String    @id @default(uuid())
+  userId      String
+  type        String    // BusinessPlan, UseCase, DemographicAlignment, etc.
+  status      String    // PENDING, APPROVED, REJECTED
+  documents   Json[]    // Array of document URLs/metadata
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewerId  String?
+  reviewNotes String?
+
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model ProfileBoost {
+  id          String    @id @default(uuid())
+  userId      String
+  startDate   DateTime
+  endDate     DateTime
+  status      String    // ACTIVE, EXPIRED, CANCELLED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model ProfileView {
+  id          String    @id @default(uuid())
+  viewerId    String
+  profileId   String
+  createdAt   DateTime  @default(now())
+  metadata    Json?
+
+  viewer      User      @relation("Viewers", fields: [viewerId], references: [id])
+  profile     User      @relation("ViewedProfiles", fields: [profileId], references: [id])
+}
+
+// New models for access control and logging
+model AccessLog {
+  id          String    @id @default(uuid())
+  userId      String
+  action      String    // READ, WRITE, UPDATE, DELETE, etc.
+  resource    String    // profile, match, message, etc.
+  resourceId  String?
+  success     Boolean
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+// New models for advanced matching
+
+model TeamMember {
+  id                String   @id @default(uuid())
+  name              String
+  role              String
+  experience        Int      // Years of experience
+  skills            Json[]   // Array of skills
+  linkedin          String?
+  entrepreneurId    String
+  entrepreneur      EntrepreneurProfile @relation(fields: [entrepreneurId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+}
+
+model InvestmentHistory {
+  id              String   @id @default(uuid())
+  funderId        String
+  funder          FunderProfile @relation(fields: [funderId], references: [id])
+  companyName     String
+  amount          Float
+  stage           String
+  date            DateTime
+  outcome         String?  // Success, Exit, Ongoing, etc.
+  industry        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+}
+
+model SuccessMetric {
+  id              String   @id @default(uuid())
+  type            String   // Revenue, Users, Growth, etc.
+  value           Float
+  date            DateTime
+  entrepreneur    EntrepreneurProfile? @relation(fields: [entrepreneurId], references: [id])
+  funder          FunderProfile? @relation(fields: [funderId], references: [id])
+  entrepreneurId  String?
+  funderId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+}
+
+model IndustryFocus {
+  id              String   @id @default(uuid())
+  funderId        String
+  funder          FunderProfile @relation(fields: [funderId], references: [id])
+  industry        String
+  expertise       Int      // 1-10 scale
+  yearsExperience Int
+  successfulDeals Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+}
+
+model MatchStatus {
+  id              String   @id @default(uuid())
+  matchId         String
+  match           Match    @relation(fields: [matchId], references: [id])
+  status          String
+  reason          String?
+  createdAt       DateTime @default(now())
+}
+
+model MatchFeedback {
+  id              String   @id @default(uuid())
+  matchId         String   @unique
+  match           Match    @relation(fields: [matchId], references: [id])
+  rating          Int      // 1-5 scale
+  feedback        String?
+  reasonCodes     String[] // Array of predefined reason codes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
 }
