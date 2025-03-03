@@ -1,86 +1,67 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography, SvgIcon } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
+import { Card, CardContent } from '@/components/ui/card';
 
-export type ChangeDirection = 'up' | 'down' | 'neutral';
-
-interface MetricCardProps {
+/**
+ * Props for the MetricCard component
+ */
+export interface MetricCardProps {
+  /**
+   * Title of the metric
+   */
   title: string;
-  value: string | number;
-  change?: number;
-  changeDirection?: ChangeDirection;
-  icon?: React.ReactNode;
+  
+  /**
+   * Value to display
+   */
+  value: string;
+  
+  /**
+   * Icon to display
+   */
+  icon: React.ReactNode;
+  
+  /**
+   * Optional trend information
+   */
+  trend?: {
+    value: number;
+    label: string;
+  };
+  
+  /**
+   * Optional CSS class name
+   */
+  className?: string;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({
-  title,
-  value,
-  change,
-  changeDirection = 'neutral',
-  icon
+/**
+ * A card component for displaying a metric with an icon and optional trend
+ */
+export const MetricCard: React.FC<MetricCardProps> = ({ 
+  title, 
+  value, 
+  icon, 
+  trend,
+  className 
 }) => {
-  // Determine color based on change direction
-  const getChangeColor = () => {
-    switch (changeDirection) {
-      case 'up':
-        return 'success.main';
-      case 'down':
-        return 'error.main';
-      default:
-        return 'text.secondary';
-    }
-  };
-
-  // Get appropriate icon based on change direction
-  const getChangeIcon = () => {
-    switch (changeDirection) {
-      case 'up':
-        return <TrendingUpIcon fontSize="small" />;
-      case 'down':
-        return <TrendingDownIcon fontSize="small" />;
-      default:
-        return <TrendingFlatIcon fontSize="small" />;
-    }
-  };
-
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" color="text.secondary">
-            {title}
-          </Typography>
-          {icon && (
-            <SvgIcon color="primary" fontSize="small">
-              {icon}
-            </SvgIcon>
-          )}
-        </Box>
-        <Typography variant="h4" component="div" sx={{ mb: 1 }}>
-          {typeof value === 'number' ? value.toLocaleString() : value}
-        </Typography>
-        {change !== undefined && (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Box sx={{ color: getChangeColor(), display: 'flex', alignItems: 'center', mr: 1 }}>
-              {getChangeIcon()}
-            </Box>
-            <Typography 
-              variant="body2" 
-              component="span"
-              color={getChangeColor()}
-            >
-              {change > 0 ? '+' : ''}{change}%
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              vs previous period
-            </Typography>
-          </Box>
-        )}
+    <Card className={className}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <h4 className="text-2xl font-bold mt-1">{value}</h4>
+            {trend && (
+              <p className={`text-xs mt-1 ${trend.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
+              </p>
+            )}
+          </div>
+          <div className="p-2 bg-primary/10 rounded-full">
+            {icon}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
-};
-
-export default MetricCard; 
+}; 
