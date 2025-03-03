@@ -1,319 +1,253 @@
-<<<<<<< HEAD
 // src/components/chat/ChatList.tsx
 
-import React, { useState, useEffect } from 'react';
-import { Archive, Pin, Mute, MoreHorizontal, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
-  SwipeableCard, 
-  TouchButton, 
-  TouchList, 
-  TouchableOverlay,
-  PullToRefresh 
-} from '@/components/base/mobile';
+  List, 
+  ListItem, 
+  ListItemAvatar, 
+  ListItemText, 
+  ListItemButton,
+  Avatar, 
+  Typography, 
+  Badge, 
+  Divider, 
+  Box, 
+  IconButton, 
+  TextField, 
+  InputAdornment,
+  CircularProgress,
+  Paper
+} from '@mui/material';
+import { 
+  Search as SearchIcon, 
+  Add as AddIcon,
+  FilterList as FilterIcon
+} from '@mui/icons-material';
+import { Chat } from '../../services/ChatService';
 import { formatDistanceToNow } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Entrepreneur, Funder } from '@/types/user';
 
-interface Message {
-  id: string;
-  content: string;
-  timestamp: string;
-  senderId: string;
-  read: boolean;
+interface ChatListProps {
+  chats: Chat[];
+  loading: boolean;
+  error: Error | null;
+  onChatSelect: (chatId: string) => void;
+  selectedChatId?: string;
+  onNewChat?: () => void;
 }
 
-interface Conversation {
-  id: string;
-  participant: Entrepreneur | Funder;
-  lastMessage?: Message;
-  unreadCount: number;
-  isPinned: boolean;
-  isMuted: boolean;
-  isArchived: boolean;
-}
-
-interface ChatProps {
-  onSelectConversation: (id: string) => void;
-  activeConversationId?: string;
-}
-
-const ChatList: React.FC<ChatProps> = ({
-  onSelectConversation,
-  activeConversationId
+const ChatList: React.FC<ChatListProps> = ({
+  chats,
+  loading,
+  error,
+  onChatSelect,
+  selectedChatId,
+  onNewChat
 }) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [showOptions, setShowOptions] = useState(false);
-
-  const fetchConversations = async () => {
-    try {
-      const response = await fetch('/api/conversations');
-      if (!response.ok) throw new Error('Failed to fetch conversations');
-      const data = await response.json();
-      setConversations(data);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    } finally {
-      setIsLoading(false);
+  
+  // Filter chats based on search query
+  const filteredChats = chats.filter(chat => {
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Search in chat title
+    if (chat.title && chat.title.toLowerCase().includes(searchLower)) {
+      return true;
     }
-  };
-
-  useEffect(() => {
-    fetchConversations();
-  }, []);
-
-  const handlePin = async (conversation: Conversation) => {
-    try {
-      await fetch(`/api/conversations/${conversation.id}/pin`, {
-        method: 'POST',
-        body: JSON.stringify({ pinned: !conversation.isPinned })
-      });
-      
-      setConversations(prev => prev.map(c => 
-        c.id === conversation.id ? { ...c, isPinned: !c.isPinned } : c
-      ));
-    } catch (error) {
-      console.error('Error pinning conversation:', error);
-    }
-    setShowOptions(false);
-  };
-
-  const handleMute = async (conversation: Conversation) => {
-    try {
-      await fetch(`/api/conversations/${conversation.id}/mute`, {
-        method: 'POST',
-        body: JSON.stringify({ muted: !conversation.isMuted })
-      });
-      
-      setConversations(prev => prev.map(c => 
-        c.id === conversation.id ? { ...c, isMuted: !c.isMuted } : c
-      ));
-    } catch (error) {
-      console.error('Error muting conversation:', error);
-    }
-    setShowOptions(false);
-  };
-
-  const handleArchive = async (conversation: Conversation) => {
-    try {
-      await fetch(`/api/conversations/${conversation.id}/archive`, {
-        method: 'POST'
-      });
-      
-      setConversations(prev => prev.map(c => 
-        c.id === conversation.id ? { ...c, isArchived: true } : c
-      ));
-    } catch (error) {
-      console.error('Error archiving conversation:', error);
-    }
-    setShowOptions(false);
-  };
-
-  const ConversationCard = ({ conversation }: { conversation: Conversation }) => (
-    <SwipeableCard
-      onSwipeLeft={() => setSelectedConversation(conversation)}
-      onSwipeRight={() => conversation.isPinned ? handlePin(conversation) : handleArchive(conversation)}
-      leftAction={
-        <div className="bg-gray-500 text-white p-3 rounded-full">
-          <MoreHorizontal className="h-6 w-6" />
-        </div>
-      }
-      rightAction={
-        <div className={`${conversation.isPinned ? 'bg-blue-500' : 'bg-gray-500'} text-white p-3 rounded-full`}>
-          {conversation.isPinned ? <Pin className="h-6 w-6" /> : <Archive className="h-6 w-6" />}
-        </div>
-      }
-    >
-      <button
-        className={`w-full p-4 ${
-          activeConversationId === conversation.id ? 'bg-blue-50' : ''
-        }`}
-        onClick={() => onSelectConversation(conversation.id)}
-      >
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <img
-              src={conversation.participant.photo}
-              alt="Profile"
-              className="w-12 h-12 rounded-full object-cover"
-            />
-            {conversation.unreadCount > 0 && !conversation.isMuted && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">
-                {conversation.unreadCount}
-              </span>
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-baseline">
-              <h3 className={`font-semibold truncate ${
-                conversation.unreadCount > 0 && !conversation.isMuted ? 'text-black' : 'text-gray-700'
-              }`}>
-                {conversation.participant.type === 'entrepreneur'
-                  ? (conversation.participant as Entrepreneur).projectName
-                  : (conversation.participant as Funder).name}
-              </h3>
-              {conversation.lastMessage && (
-                <span className="text-xs text-gray-500 flex-shrink-0">
-                  {formatDistanceToNow(new Date(conversation.lastMessage.timestamp), { addSuffix: true })}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              {conversation.isMuted && (
-                <Mute className="h-3 w-3 text-gray-400" />
-              )}
-              {conversation.isPinned && (
-                <Pin className="h-3 w-3 text-blue-500" />
-              )}
-              <p className={`text-sm truncate ${
-                conversation.unreadCount > 0 && !conversation.isMuted ? 'text-black' : 'text-gray-500'
-              }`}>
-                {conversation.lastMessage?.content || 'No messages yet'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </button>
-    </SwipeableCard>
-  );
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4 p-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="animate-pulse flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gray-200 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
-            </div>
-          </div>
-        ))}
-      </div>
+    
+    // Search in participant names
+    return chat.participants.some(
+      participant => participant.name.toLowerCase().includes(searchLower)
     );
-  }
-
-  const filteredConversations = conversations
-    .filter(c => !c.isArchived || showSearch)
-    .filter(c => {
-      if (!searchQuery) return true;
-      const name = c.participant.type === 'entrepreneur'
-        ? (c.participant as Entrepreneur).projectName
-        : (c.participant as Funder).name;
-      return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.lastMessage?.content.toLowerCase().includes(searchQuery.toLowerCase());
-    })
-    .sort((a, b) => {
-      // Sort pinned conversations first
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
+  });
+  
+  // Get chat title or participant name for direct chats
+  const getChatTitle = (chat: Chat): string => {
+    if (chat.title) {
+      return chat.title;
+    }
+    
+    // For direct chats, show the other participant's name
+    // This assumes the current user is always the first participant
+    if (chat.type === 'direct' && chat.participants.length > 1) {
+      return chat.participants[1].name;
+    }
+    
+    return 'Unnamed Chat';
+  };
+  
+  // Get chat avatar
+  const getChatAvatar = (chat: Chat): string | undefined => {
+    if (chat.type === 'direct' && chat.participants.length > 1) {
+      return chat.participants[1].avatar;
+    }
+    return undefined;
+  };
+  
+  // Format timestamp
+  const formatTimestamp = (timestamp: string): string => {
+    try {
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } catch (error) {
+      return '';
+    }
+  };
+  
+  // Get online status indicator
+  const getStatusIndicator = (chat: Chat): React.ReactNode => {
+    if (chat.type === 'direct' && chat.participants.length > 1) {
+      const otherParticipant = chat.participants[1];
       
-      // Then sort by last message timestamp
-      const aTime = a.lastMessage?.timestamp || '0';
-      const bTime = b.lastMessage?.timestamp || '0';
-      return new Date(bTime).getTime() - new Date(aTime).getTime();
-    });
-
+      if (otherParticipant.status === 'online') {
+        return (
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              bgcolor: 'success.main',
+              border: '2px solid #fff',
+              position: 'absolute',
+              bottom: 0,
+              right: 0
+            }}
+          />
+        );
+      }
+    }
+    
+    return null;
+  };
+  
   return (
-    <>
-      <div className="flex flex-col h-full">
-        {/* Search Header */}
-        <div className="p-4 bg-white border-b">
-          {showSearch ? (
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
-                className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
-              <TouchButton
-                variant="ghost"
-                onClick={() => {
-                  setShowSearch(false);
-                  setSearchQuery('');
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        borderRight: 1, 
+        borderColor: 'divider' 
+      }}
+    >
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold">Messages</Typography>
+          <Box>
+            <IconButton size="small" onClick={() => {}} aria-label="filter">
+              <FilterIcon />
+            </IconButton>
+            <IconButton 
+              size="small" 
+              onClick={onNewChat} 
+              color="primary" 
+              aria-label="new chat"
+              sx={{ ml: 1 }}
+            >
+              <AddIcon />
+            </IconButton>
+          </Box>
+        </Box>
+        
+        <TextField
+          fullWidth
+          placeholder="Search conversations..."
+          variant="outlined"
+          size="small"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+      
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Box sx={{ p: 2, color: 'error.main' }}>
+          <Typography>Error loading chats: {error.message}</Typography>
+        </Box>
+      ) : filteredChats.length === 0 ? (
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <Typography color="textSecondary">
+            {searchQuery ? 'No chats match your search' : 'No conversations yet'}
+          </Typography>
+        </Box>
+      ) : (
+        <List sx={{ flexGrow: 1, overflow: 'auto', p: 0 }}>
+          {filteredChats.map((chat) => (
+            <React.Fragment key={chat.id}>
+              <ListItemButton
+                onClick={() => onChatSelect(chat.id)}
+                selected={selectedChatId === chat.id}
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  '&.Mui-selected': {
+                    backgroundColor: 'action.selected',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
                 }}
               >
-                Cancel
-              </TouchButton>
-            </div>
-          ) : (
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Messages</h2>
-              <TouchButton
-                variant="ghost"
-                size="small"
-                icon={<Search className="h-5 w-5" />}
-                onClick={() => setShowSearch(true)}
-                aria-label="Search conversations"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
-          <PullToRefresh onRefresh={fetchConversations}>
-            <TouchList spacing="none" divider>
-              {filteredConversations.map((conversation) => (
-                <ConversationCard
-                  key={conversation.id}
-                  conversation={conversation}
+                <ListItemAvatar>
+                  <Box sx={{ position: 'relative' }}>
+                    <Avatar src={getChatAvatar(chat)}>
+                      {getChatTitle(chat).charAt(0)}
+                    </Avatar>
+                    {getStatusIndicator(chat)}
+                  </Box>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body1" fontWeight={chat.unreadCount > 0 ? 'bold' : 'normal'} noWrap>
+                        {getChatTitle(chat)}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {chat.lastMessage ? formatTimestamp(chat.lastMessage.timestamp) : ''}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography 
+                        variant="body2" 
+                        color="textSecondary" 
+                        noWrap
+                        sx={{ 
+                          maxWidth: '80%',
+                          fontWeight: chat.unreadCount > 0 ? 'medium' : 'normal'
+                        }}
+                      >
+                        {chat.lastMessage ? chat.lastMessage.content : 'No messages yet'}
+                      </Typography>
+                      {chat.unreadCount > 0 && (
+                        <Badge
+                          badgeContent={chat.unreadCount}
+                          color="primary"
+                          sx={{ ml: 1 }}
+                        />
+                      )}
+                    </Box>
+                  }
                 />
-              ))}
-            </TouchList>
-          </PullToRefresh>
-        </div>
-      </div>
-
-      {/* Conversation Options Bottom Sheet */}
-      <TouchableOverlay
-        isOpen={!!selectedConversation}
-        onClose={() => setSelectedConversation(null)}
-        position="bottom"
-      >
-        <div className="p-4">
-          <h3 className="text-lg font-semibold mb-4">Conversation Options</h3>
-          <TouchList spacing="small">
-            <TouchButton
-              variant="ghost"
-              fullWidth
-              icon={<Pin className="h-5 w-5" />}
-              onClick={() => selectedConversation && handlePin(selectedConversation)}
-            >
-              {selectedConversation?.isPinned ? 'Unpin' : 'Pin'} Conversation
-            </TouchButton>
-            <TouchButton
-              variant="ghost"
-              fullWidth
-              icon={<Mute className="h-5 w-5" />}
-              onClick={() => selectedConversation && handleMute(selectedConversation)}
-            >
-              {selectedConversation?.isMuted ? 'Unmute' : 'Mute'} Notifications
-            </TouchButton>
-            <TouchButton
-              variant="ghost"
-              fullWidth
-              icon={<Archive className="h-5 w-5" />}
-              onClick={() => selectedConversation && handleArchive(selectedConversation)}
-              className="text-red-600"
-            >
-              Archive Conversation
-            </TouchButton>
-          </TouchList>
-        </div>
-      </TouchableOverlay>
-    </>
+              </ListItemButton>
+              <Divider component="li" />
+            </React.Fragment>
+          ))}
+        </List>
+      )}
+    </Paper>
   );
 };
 
 export default ChatList;
-=======
-// Content of mobile-optimized ChatList.tsx as shown above
->>>>>>> feature/security-implementation

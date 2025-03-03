@@ -7,6 +7,10 @@ import chatRoutes from './chat';
 import analyticsRoutes from './analytics';
 import settingsRoutes from './settings';
 import verificationsRoutes from './verifications';
+import notificationRoutes from './notifications';
+import escrowRoutes from './escrow';
+import documentRoutes from './documents';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -21,6 +25,9 @@ router.use('/chat', authenticateToken, chatRoutes);
 router.use('/analytics', authenticateToken, analyticsRoutes);
 router.use('/settings', authenticateToken, settingsRoutes);
 router.use('/verifications', authenticateToken, verificationsRoutes);
+router.use('/notifications', authenticateToken, notificationRoutes);
+router.use('/escrow', authenticateToken, escrowRoutes);
+router.use('/documents', authenticateToken, documentRoutes);
 
 // Health check route
 router.get('/health', (req, res) => {

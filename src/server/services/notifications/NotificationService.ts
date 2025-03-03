@@ -1,6 +1,11 @@
 // src/services/notifications/NotificationService.ts
 import { io, Socket } from 'socket.io-client';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { PrismaClient } from '@prisma/client';
+import { WebSocketService } from '../websocket/WebSocketService';
+import { EmailService } from '../email/EmailService';
+
+const prisma = new PrismaClient();
 
 export interface Notification {
   id: string;
@@ -19,6 +24,15 @@ interface NotificationState {
   connected: boolean;
 }
 
+export enum NotificationType {
+  MATCH = 'match',
+  CHAT = 'chat',
+  DOCUMENT = 'document',
+  ESCROW = 'escrow',
+  VERIFICATION = 'verification',
+  SYSTEM = 'system'
+}
+
 export class NotificationService {
   private socket: Socket | null = null;
   private pushEnabled = false;
@@ -35,6 +49,14 @@ export class NotificationService {
   
   private state$ = new BehaviorSubject<NotificationState>(this.initialState);
   
+  private wsService: WebSocketService;
+  private emailService: EmailService;
+
+  constructor(wsService: WebSocketService, emailService: EmailService) {
+    this.wsService = wsService;
+    this.emailService = emailService;
+  }
+
   // Expose observable for components to subscribe to
   public get state(): Observable<NotificationState> {
     return this.state$.asObservable();
@@ -385,6 +407,441 @@ export class NotificationService {
       unreadCount: data.count
     });
   };
+
+  /**
+   * Create a notification
+   */
+  async createNotification(
+    userId: string,
+    type: string,
+    content: string,
+    metadata: Record<string, any> = {},
+    sendRealTime: boolean = true,
+    sendEmail: boolean = false
+  ) {
+    try {
+      // Create notification in database
+      const notification = await prisma.notification.create({
+        data: {
+          userId,
+          type,
+          content,
+          metadata,
+          isRead: false
+        }
+      });
+
+      // Send real-time notification via WebSocket
+      if (sendRealTime) {
+        this.wsService.sendToUser(userId, {
+          type: 'NEW_NOTIFICATION',
+          data: notification
+        });
+      }
+
+      // Send email notification if requested
+      if (sendEmail) {
+        await this.sendEmailNotification(userId, type, content, metadata);
+      }
+
+      return notification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get notifications for a user
+   */
+  async getNotifications(userId: string, page = 1, limit = 20, includeRead = false) {
+    try {
+      const where: any = {
+        userId
+      };
+
+      if (!includeRead) {
+        where.isRead = false;
+      }
+
+      const [notifications, totalCount] = await Promise.all([
+        prisma.notification.findMany({
+          where,
+          orderBy: {
+            createdAt: 'desc'
+          },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        prisma.notification.count({
+          where
+        })
+      ]);
+
+      return {
+        notifications,
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      };
+    } catch (error) {
+      console.error('Error getting notifications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a notification as read
+   */
+  async markAsRead(notificationId: string, userId: string) {
+    try {
+      const notification = await prisma.notification.findUnique({
+        where: { id: notificationId }
+      });
+
+      if (!notification) {
+        throw new Error('Notification not found');
+      }
+
+      if (notification.userId !== userId) {
+        throw new Error('Unauthorized to mark this notification as read');
+      }
+
+      return prisma.notification.update({
+        where: { id: notificationId },
+        data: {
+          isRead: true,
+          readAt: new Date()
+        }
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark all notifications as read for a user
+   */
+  async markAllAsRead(userId: string) {
+    try {
+      await prisma.notification.updateMany({
+        where: {
+          userId,
+          isRead: false
+        },
+        data: {
+          isRead: true,
+          readAt: new Date()
+        }
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a notification
+   */
+  async deleteNotification(notificationId: string, userId: string) {
+    try {
+      const notification = await prisma.notification.findUnique({
+        where: { id: notificationId }
+      });
+
+      if (!notification) {
+        throw new Error('Notification not found');
+      }
+
+      if (notification.userId !== userId) {
+        throw new Error('Unauthorized to delete this notification');
+      }
+
+      await prisma.notification.delete({
+        where: { id: notificationId }
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get unread notification count for a user
+   */
+  async getUnreadCount(userId: string) {
+    try {
+      const count = await prisma.notification.count({
+        where: {
+          userId,
+          isRead: false
+        }
+      });
+
+      return { count };
+    } catch (error) {
+      console.error('Error getting unread notification count:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send a notification to multiple users
+   */
+  async notifyMultipleUsers(
+    userIds: string[],
+    type: string,
+    content: string,
+    metadata: Record<string, any> = {},
+    sendRealTime: boolean = true,
+    sendEmail: boolean = false
+  ) {
+    try {
+      const notifications = await Promise.all(
+        userIds.map(userId =>
+          this.createNotification(userId, type, content, metadata, sendRealTime, sendEmail)
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error notifying multiple users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send an email notification
+   */
+  private async sendEmailNotification(
+    userId: string,
+    type: string,
+    content: string,
+    metadata: Record<string, any>
+  ) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user || !user.email) {
+        throw new Error('User email not found');
+      }
+
+      // Determine email template based on notification type
+      let template = 'general-notification';
+      let subject = 'New Notification from Launchify';
+
+      switch (type) {
+        case 'match_request':
+          template = 'match-request';
+          subject = 'New Match Request on Launchify';
+          break;
+        case 'match_accepted':
+          template = 'match-accepted';
+          subject = 'Your Match Request was Accepted';
+          break;
+        case 'new_message':
+          template = 'new-message';
+          subject = 'New Message on Launchify';
+          break;
+        case 'document_signature_required':
+          template = 'document-signature';
+          subject = 'Document Requires Your Signature';
+          break;
+        case 'escrow_funded':
+          template = 'escrow-funded';
+          subject = 'Escrow Account Funded';
+          break;
+        case 'milestone_completed':
+          template = 'milestone-completed';
+          subject = 'Milestone Completed';
+          break;
+        case 'verification_status':
+          template = 'verification-status';
+          subject = 'Verification Status Update';
+          break;
+      }
+
+      // Send email
+      await this.emailService.sendEmail({
+        to: user.email,
+        template,
+        subject,
+        data: {
+          name: user.name || 'User',
+          content,
+          ...metadata
+        }
+      });
+    } catch (error) {
+      console.error('Error sending email notification:', error);
+      // Don't throw, just log the error to prevent notification creation failure
+    }
+  }
+
+  /**
+   * Create a match notification
+   */
+  async createMatchNotification(
+    userId: string,
+    matchId: string,
+    otherUserName: string,
+    action: 'request' | 'accepted' | 'rejected'
+  ) {
+    let content = '';
+    let type = '';
+    let metadata = { matchId };
+
+    switch (action) {
+      case 'request':
+        content = `${otherUserName} has requested to match with you`;
+        type = 'match_request';
+        break;
+      case 'accepted':
+        content = `${otherUserName} has accepted your match request`;
+        type = 'match_accepted';
+        break;
+      case 'rejected':
+        content = `${otherUserName} has declined your match request`;
+        type = 'match_rejected';
+        break;
+    }
+
+    return this.createNotification(userId, type, content, metadata, true, true);
+  }
+
+  /**
+   * Create a chat notification
+   */
+  async createChatNotification(
+    userId: string,
+    chatRoomId: string,
+    senderName: string,
+    messagePreview: string
+  ) {
+    const content = `New message from ${senderName}: ${messagePreview.substring(0, 50)}${
+      messagePreview.length > 50 ? '...' : ''
+    }`;
+    const type = 'new_message';
+    const metadata = { chatRoomId };
+
+    return this.createNotification(userId, type, content, metadata, true, false);
+  }
+
+  /**
+   * Create a document notification
+   */
+  async createDocumentNotification(
+    userId: string,
+    documentId: string,
+    documentName: string,
+    action: 'created' | 'signed' | 'signature_required'
+  ) {
+    let content = '';
+    let type = '';
+    let metadata = { documentId };
+    let sendEmail = false;
+
+    switch (action) {
+      case 'created':
+        content = `New document created: ${documentName}`;
+        type = 'document_created';
+        break;
+      case 'signed':
+        content = `Document has been signed: ${documentName}`;
+        type = 'document_signed';
+        break;
+      case 'signature_required':
+        content = `Your signature is required on document: ${documentName}`;
+        type = 'document_signature_required';
+        sendEmail = true;
+        break;
+    }
+
+    return this.createNotification(userId, type, content, metadata, true, sendEmail);
+  }
+
+  /**
+   * Create an escrow notification
+   */
+  async createEscrowNotification(
+    userId: string,
+    escrowId: string,
+    amount: number,
+    action: 'created' | 'funded' | 'milestone_completed' | 'funds_released'
+  ) {
+    let content = '';
+    let type = '';
+    let metadata = { escrowId, amount };
+    let sendEmail = false;
+
+    switch (action) {
+      case 'created':
+        content = `New escrow account created with amount $${amount.toLocaleString()}`;
+        type = 'escrow_created';
+        break;
+      case 'funded':
+        content = `Escrow account funded with $${amount.toLocaleString()}`;
+        type = 'escrow_funded';
+        sendEmail = true;
+        break;
+      case 'milestone_completed':
+        content = `Milestone completed for $${amount.toLocaleString()}`;
+        type = 'milestone_completed';
+        sendEmail = true;
+        break;
+      case 'funds_released':
+        content = `Funds released: $${amount.toLocaleString()}`;
+        type = 'funds_released';
+        sendEmail = true;
+        break;
+    }
+
+    return this.createNotification(userId, type, content, metadata, true, sendEmail);
+  }
+
+  /**
+   * Create a verification notification
+   */
+  async createVerificationNotification(
+    userId: string,
+    verificationId: string,
+    level: string,
+    status: 'submitted' | 'approved' | 'rejected' | 'info_requested'
+  ) {
+    let content = '';
+    let type = '';
+    let metadata = { verificationId, level };
+    let sendEmail = true;
+
+    switch (status) {
+      case 'submitted':
+        content = `Your verification request for ${level} has been submitted`;
+        type = 'verification_submitted';
+        break;
+      case 'approved':
+        content = `Your verification request for ${level} has been approved`;
+        type = 'verification_approved';
+        break;
+      case 'rejected':
+        content = `Your verification request for ${level} has been rejected`;
+        type = 'verification_rejected';
+        break;
+      case 'info_requested':
+        content = `Additional information requested for your ${level} verification`;
+        type = 'verification_info_requested';
+        break;
+    }
+
+    return this.createNotification(userId, type, content, metadata, true, sendEmail);
+  }
 }
 
 // Create singleton instance

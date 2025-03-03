@@ -1,30 +1,107 @@
 // src/hooks/useResponsive.ts
-import { useState, useEffect } from 'react';
+import { useMediaQuery, useTheme } from '@mui/material';
+import { useEffect, useState } from 'react';
 
-export const breakpoints = {
-  xs: 0,
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-  '2xl': 1536,
-} as const;
+export type Breakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-type Breakpoint = keyof typeof breakpoints;
+interface ResponsiveReturn {
+  // Current breakpoint
+  breakpoint: Breakpoint;
+  
+  // Boolean checks for screen sizes
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+  
+  // Specific breakpoint checks
+  isXs: boolean;
+  isSm: boolean;
+  isMd: boolean;
+  isLg: boolean;
+  isXl: boolean;
+  
+  // Utility functions
+  up: (breakpoint: Breakpoint) => boolean;
+  down: (breakpoint: Breakpoint) => boolean;
+  between: (start: Breakpoint, end: Breakpoint) => boolean;
+  only: (breakpoint: Breakpoint) => boolean;
+  
+  // Window dimensions
+  width: number;
+  height: number;
+}
 
-export function useBreakpoint(breakpoint: Breakpoint): boolean {
-  const [matches, setMatches] = useState(false);
-
+/**
+ * Custom hook for responsive design
+ * Provides utilities to check current screen size and adapt UI accordingly
+ */
+export function useResponsive(): ResponsiveReturn {
+  const theme = useTheme();
+  
+  // Media query matches
+  const isXs = useMediaQuery(theme.breakpoints.only('xs'));
+  const isSm = useMediaQuery(theme.breakpoints.only('sm'));
+  const isMd = useMediaQuery(theme.breakpoints.only('md'));
+  const isLg = useMediaQuery(theme.breakpoints.only('lg'));
+  const isXl = useMediaQuery(theme.breakpoints.only('xl'));
+  
+  // Determine current breakpoint
+  let breakpoint: Breakpoint = 'xs';
+  if (isXl) breakpoint = 'xl';
+  else if (isLg) breakpoint = 'lg';
+  else if (isMd) breakpoint = 'md';
+  else if (isSm) breakpoint = 'sm';
+  
+  // Simplified device categories
+  const isMobile = isXs;
+  const isTablet = isSm || isMd;
+  const isDesktop = isLg || isXl;
+  
+  // Window dimensions state
+  const [dimensions, setDimensions] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0
+  });
+  
+  // Update dimensions on resize
   useEffect(() => {
-    const query = window.matchMedia(`(min-width: ${breakpoints[breakpoint]}px)`);
-    setMatches(query.matches);
-
-    const listener = (e: MediaQueryListEvent) => setMatches(e.matches);
-    query.addEventListener('change', listener);
-    return () => query.removeEventListener('change', listener);
-  }, [breakpoint]);
-
-  return matches;
+    if (typeof window === 'undefined') return;
+    
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Utility functions
+  const up = (bp: Breakpoint) => useMediaQuery(theme.breakpoints.up(bp));
+  const down = (bp: Breakpoint) => useMediaQuery(theme.breakpoints.down(bp));
+  const between = (start: Breakpoint, end: Breakpoint) => 
+    useMediaQuery(theme.breakpoints.between(start, end));
+  const only = (bp: Breakpoint) => useMediaQuery(theme.breakpoints.only(bp));
+  
+  return {
+    breakpoint,
+    isMobile,
+    isTablet,
+    isDesktop,
+    isXs,
+    isSm,
+    isMd,
+    isLg,
+    isXl,
+    up,
+    down,
+    between,
+    only,
+    width: dimensions.width,
+    height: dimensions.height
+  };
 }
 
 // src/hooks/useSwipe.ts

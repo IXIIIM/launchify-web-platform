@@ -2,6 +2,10 @@
 
 import { Request, Response } from 'express';
 import { EscrowService } from '../services/escrow';
+import { DocumentService, DocumentType } from '../services/documents/DocumentService';
+import { StorageService } from '../services/storage/StorageService';
+import { EmailService } from '../services/email/EmailService';
+import { AuthRequest } from '../middleware/auth';
 
 const escrowService = new EscrowService();
 
@@ -11,22 +15,59 @@ interface AuthRequest extends Request {
 
 export const createEscrowAccount = async (req: AuthRequest, res: Response) => {
   try {
-    const { entrepreneurId, amount } = req.body;
+    const { entrepreneurId, amount, matchId } = req.body;
+    const funderId = req.user.id;
 
-    if (req.user.userType !== 'funder') {
-      return res.status(403).json({ message: 'Only funders can create escrow accounts' });
+    if (!entrepreneurId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Entrepreneur ID and amount are required'
+      });
     }
 
+    if (req.user.userType !== 'funder') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only funders can create escrow accounts'
+      });
+    }
+
+    // Create escrow account
     const escrowAccount = await escrowService.createEscrowAccount(
       entrepreneurId,
-      req.user.id,
-      amount
+      funderId,
+      parseFloat(amount)
     );
 
-    res.json(escrowAccount);
-  } catch (error) {
+    // Generate escrow agreement document
+    let escrowDocument = null;
+    if (matchId) {
+      try {
+        escrowDocument = await generateEscrowAgreement(
+          escrowAccount.id,
+          matchId,
+          funderId
+        );
+      } catch (docError) {
+        console.error('Error generating escrow agreement:', docError);
+        // Continue even if document generation fails
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Escrow account created successfully',
+      data: {
+        escrowAccount,
+        escrowDocument
+      }
+    });
+  } catch (error: any) {
     console.error('Error creating escrow account:', error);
-    res.status(500).json({ message: 'Error creating escrow account' });
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create escrow account'
+    });
   }
 };
 

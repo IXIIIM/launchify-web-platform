@@ -2,205 +2,263 @@ import { Request, Response } from 'express';
 import { VerificationService } from '../services/verification/VerificationService';
 import { EmailService } from '../services/email/EmailService';
 import { WebSocketServer } from '../services/websocket';
+import { AuthRequest } from '../middleware/auth';
+import { VerificationLevel } from '../../types/user';
+import { uploadMiddleware } from '../middleware/upload';
 
 const emailService = new EmailService();
 const verificationService = new VerificationService(emailService, WebSocketServer.getInstance());
 
-interface AuthRequest extends Request {
-  user: any;
+export class VerificationController {
+  private verificationService: VerificationService;
+
+  constructor(verificationService: VerificationService) {
+    this.verificationService = verificationService;
+  }
+
+  /**
+   * Submit a verification request
+   * @route POST /api/verification
+   */
+  async submitVerification(req: AuthRequest, res: Response) {
+    try {
+      const { level, additionalInfo, isCertified } = req.body;
+      const userId = req.user.id;
+      
+      if (!level || !Object.values(VerificationLevel).includes(level)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid verification level' 
+        });
+      }
+
+      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'No documents provided' 
+        });
+      }
+
+      const request = await this.verificationService.submitVerification(
+        userId,
+        level as VerificationLevel,
+        req.files,
+        additionalInfo,
+        isCertified === 'true' || isCertified === true
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: 'Verification request submitted successfully',
+        data: request
+      });
+    } catch (error: any) {
+      console.error('Error submitting verification:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to submit verification request'
+      });
+    }
+  }
+
+  /**
+   * Get verification status for the current user
+   * @route GET /api/verification/status
+   */
+  async getVerificationStatus(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user.id;
+      const status = await this.verificationService.getUserVerificationStatus(userId);
+
+      return res.status(200).json({
+        success: true,
+        data: status
+      });
+    } catch (error: any) {
+      console.error('Error getting verification status:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get verification status'
+      });
+    }
+  }
+
+  /**
+   * Get all verification requests (admin only)
+   * @route GET /api/admin/verification
+   */
+  async getAllVerificationRequests(req: AuthRequest, res: Response) {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized access'
+        });
+      }
+
+      const { status, type, userId } = req.query;
+      
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (type) filters.type = type;
+      if (userId) filters.userId = userId;
+
+      const requests = await this.verificationService.getVerificationRequests(filters);
+
+      return res.status(200).json({
+        success: true,
+        data: requests
+      });
+    } catch (error: any) {
+      console.error('Error getting verification requests:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get verification requests'
+      });
+    }
+  }
+
+  /**
+   * Get a specific verification request (admin only)
+   * @route GET /api/admin/verification/:id
+   */
+  async getVerificationRequest(req: AuthRequest, res: Response) {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized access'
+        });
+      }
+
+      const { id } = req.params;
+      const request = await this.verificationService.getVerificationRequest(id);
+
+      if (!request) {
+        return res.status(404).json({
+          success: false,
+          message: 'Verification request not found'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: request
+      });
+    } catch (error: any) {
+      console.error('Error getting verification request:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get verification request'
+      });
+    }
+  }
+
+  /**
+   * Approve a verification request (admin only)
+   * @route POST /api/admin/verification/:id/approve
+   */
+  async approveVerification(req: AuthRequest, res: Response) {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized access'
+        });
+      }
+
+      const { id } = req.params;
+      const { notes } = req.body;
+      const reviewerId = req.user.id;
+
+      const result = await this.verificationService.approveVerification(id, reviewerId, notes);
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error('Error approving verification:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to approve verification request'
+      });
+    }
+  }
+
+  /**
+   * Reject a verification request (admin only)
+   * @route POST /api/admin/verification/:id/reject
+   */
+  async rejectVerification(req: AuthRequest, res: Response) {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized access'
+        });
+      }
+
+      const { id } = req.params;
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rejection reason is required'
+        });
+      }
+
+      const reviewerId = req.user.id;
+      const result = await this.verificationService.rejectVerification(id, reviewerId, reason);
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error('Error rejecting verification:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to reject verification request'
+      });
+    }
+  }
+
+  /**
+   * Request additional information for a verification request (admin only)
+   * @route POST /api/admin/verification/:id/request-info
+   */
+  async requestAdditionalInfo(req: AuthRequest, res: Response) {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized access'
+        });
+      }
+
+      const { id } = req.params;
+      const { questions } = req.body;
+      
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Questions are required'
+        });
+      }
+
+      const reviewerId = req.user.id;
+      const result = await this.verificationService.requestAdditionalInfo(id, reviewerId, questions);
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error('Error requesting additional info:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to request additional information'
+      });
+    }
+  }
+
+  /**
+   * Get upload middleware for verification documents
+   */
+  getUploadMiddleware() {
+    return uploadMiddleware.array('documents', 10); // Allow up to 10 documents
+  }
 }
-
-export const submitVerification = async (req: AuthRequest, res: Response) => {
-  try {
-    const { type, metadata } = req.body;
-    const documents = req.files as Express.Multer.File[];
-
-    if (!documents || documents.length === 0) {
-      return res.status(400).json({ message: 'No documents provided' });
-    }
-
-    // Validate file types and sizes
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    const maxSize = 10 * 1024 * 1024; // 10MB
-
-    const invalidFile = documents.find(
-      file => !validTypes.includes(file.mimetype) || file.size > maxSize
-    );
-
-    if (invalidFile) {
-      return res.status(400).json({
-        message: 'Invalid file type or size. Only PDF and images under 10MB are allowed.'
-      });
-    }
-
-    // Check if user can access this verification level
-    const canAccess = await verificationService.canAccessVerificationLevel(
-      req.user.id,
-      type
-    );
-
-    if (!canAccess) {
-      return res.status(403).json({
-        message: 'Your subscription tier does not support this verification level'
-      });
-    }
-
-    const request = await verificationService.submitVerificationRequest(
-      req.user.id,
-      type,
-      documents,
-      metadata
-    );
-
-    res.json({
-      message: 'Verification request submitted successfully',
-      requestId: request.id
-    });
-  } catch (error) {
-    console.error('Error submitting verification:', error);
-    res.status(500).json({ message: 'Error submitting verification request' });
-  }
-};
-
-export const processVerification = async (req: AuthRequest, res: Response) => {
-  try {
-    const { requestId } = req.params;
-    const { decision, notes } = req.body;
-
-    // Check admin permissions
-    if (!req.user.permissions?.includes('PROCESS_VERIFICATIONS')) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
-
-    // Validate decision
-    if (!['approved', 'rejected'].includes(decision)) {
-      return res.status(400).json({ message: 'Invalid decision' });
-    }
-
-    await verificationService.processVerificationRequest(
-      requestId,
-      decision,
-      notes
-    );
-
-    res.json({ message: 'Verification request processed successfully' });
-  } catch (error) {
-    console.error('Error processing verification:', error);
-    res.status(500).json({ message: 'Error processing verification request' });
-  }
-};
-
-export const getVerificationQueue = async (req: AuthRequest, res: Response) => {
-  try {
-    // Check admin permissions
-    if (!req.user.permissions?.includes('VIEW_VERIFICATION_QUEUE')) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
-
-    const { status, type, startDate, endDate } = req.query;
-
-    const filters = {
-      status: status as string,
-      type: type as string,
-      startDate: startDate ? new Date(startDate as string) : undefined,
-      endDate: endDate ? new Date(endDate as string) : undefined
-    };
-
-    const queue = await verificationService.getVerificationQueue(filters);
-    res.json(queue);
-  } catch (error) {
-    console.error('Error fetching verification queue:', error);
-    res.status(500).json({ message: 'Error fetching verification queue' });
-  }
-};
-
-export const getVerificationStatus = async (req: AuthRequest, res: Response) => {
-  try {
-    const status = await verificationService.getVerificationStatus(req.user.id);
-    res.json(status);
-  } catch (error) {
-    console.error('Error fetching verification status:', error);
-    res.status(500).json({ message: 'Error fetching verification status' });
-  }
-};
-
-export const getAvailableVerificationLevels = async (req: AuthRequest, res: Response) => {
-  try {
-    const levels = await verificationService.getAvailableVerificationLevels(req.user.id);
-    res.json(levels);
-  } catch (error) {
-    console.error('Error fetching verification levels:', error);
-    res.status(500).json({ message: 'Error fetching verification levels' });
-  }
-};
-
-export const getVerificationStats = async (req: AuthRequest, res: Response) => {
-  try {
-    // Check admin permissions
-    if (!req.user.permissions?.includes('VIEW_VERIFICATION_STATS')) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
-
-    const stats = await verificationService.getVerificationStats();
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching verification stats:', error);
-    res.status(500).json({ message: 'Error fetching verification stats' });
-  }
-};
-
-export const withdrawVerification = async (req: AuthRequest, res: Response) => {
-  try {
-    const { requestId } = req.params;
-    await verificationService.withdrawVerificationRequest(req.user.id, requestId);
-    res.json({ message: 'Verification request withdrawn successfully' });
-  } catch (error) {
-    console.error('Error withdrawing verification:', error);
-    res.status(500).json({ message: 'Error withdrawing verification request' });
-  }
-};
-
-export const updateVerificationDocuments = async (req: AuthRequest, res: Response) => {
-  try {
-    const { requestId } = req.params;
-    const documents = req.files as Express.Multer.File[];
-
-    if (!documents || documents.length === 0) {
-      return res.status(400).json({ message: 'No documents provided' });
-    }
-
-    await verificationService.updateVerificationDocuments(
-      req.user.id,
-      requestId,
-      documents
-    );
-
-    res.json({ message: 'Verification documents updated successfully' });
-  } catch (error) {
-    console.error('Error updating verification documents:', error);
-    res.status(500).json({ message: 'Error updating verification documents' });
-  }
-};
-
-export const requestAdditionalInfo = async (req: AuthRequest, res: Response) => {
-  try {
-    const { requestId } = req.params;
-    const { message, requiredDocuments } = req.body;
-
-    // Check admin permissions
-    if (!req.user.permissions?.includes('PROCESS_VERIFICATIONS')) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
-
-    await verificationService.requestAdditionalInfo(
-      requestId,
-      message,
-      requiredDocuments
-    );
-
-    res.json({ message: 'Additional information requested successfully' });
-  } catch (error) {
-    console.error('Error requesting additional info:', error);
-    res.status(500).json({ message: 'Error requesting additional information' });
-  }
-};

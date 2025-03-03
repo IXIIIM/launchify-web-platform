@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // src/components/navigation/Navigation.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -6,19 +5,21 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
-  User, 
-  Users, 
+  Search, 
   MessageCircle, 
-  CreditCard, 
-  Settings,
-  Menu,
-  X,
-  LogOut,
-  Bell
+  Bell, 
+  User, 
+  Settings, 
+  Menu as MenuIcon, 
+  Users, 
+  Shield,
+  CreditCard
 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { TouchButton } from '@/components/base/mobile';
+import { AdminPanelSettings as AdminIcon } from '@mui/icons-material';
+import { useAuth } from '../../hooks/useAuth';
 
 interface NavLink {
   path: string;
@@ -36,12 +37,16 @@ const Navigation = () => {
   const location = useLocation();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+
+  // Check if user is admin
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   // Navigation links configuration
   const navLinks: NavLink[] = [
     { path: '/', label: 'Home', icon: <Home />, requiresAuth: false },
     { path: '/dashboard', label: 'Dashboard', icon: <User />, requiresAuth: true },
-    { path: '/matching', label: 'Matching', icon: <Users />, requiresAuth: true },
+    { path: '/matches', label: 'Matches', icon: <Users />, requiresAuth: true, badge: unreadCount },
     { 
       path: '/chat', 
       label: 'Messages', 
@@ -49,8 +54,15 @@ const Navigation = () => {
       requiresAuth: true,
       badge: unreadCount 
     },
+    { path: '/verification', label: 'Verification', icon: <Shield />, requiresAuth: true },
     { path: '/subscription', label: 'Subscription', icon: <CreditCard />, requiresAuth: true },
-    { path: '/settings', label: 'Settings', icon: <Settings />, requiresAuth: true }
+    { path: '/settings', label: 'Settings', icon: <Settings />, requiresAuth: true },
+    {
+      path: '/admin',
+      label: 'Admin',
+      icon: <AdminIcon />,
+      requiresAuth: true
+    }
   ];
 
   // Fetch unread counts
@@ -213,7 +225,7 @@ const Navigation = () => {
             className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400"
             aria-label="Menu"
           >
-            <Menu className="w-6 h-6" />
+            <MenuIcon className="w-6 h-6" />
             <span className="mt-1 text-xs">More</span>
           </button>
         </div>
@@ -249,7 +261,7 @@ const Navigation = () => {
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
                   aria-label="Close menu"
                 >
-                  <X className="w-5 h-5" />
+                  <MenuIcon className="w-5 h-5" />
                 </button>
               </div>
 
@@ -290,7 +302,7 @@ const Navigation = () => {
                 <TouchButton
                   variant="ghost"
                   fullWidth
-                  icon={<LogOut className="w-5 h-5" />}
+                  icon={<MenuIcon className="w-5 h-5" />}
                   onClick={() => {/* Handle logout */}}
                   className="text-red-600 dark:text-red-400"
                 >
@@ -306,6 +318,3 @@ const Navigation = () => {
 };
 
 export default Navigation;
-=======
-// Content of mobile-optimized Navigation.tsx as shown above
->>>>>>> feature/security-implementation

@@ -45,3 +45,35 @@ export type VerificationLevel = 'None' | 'BusinessPlan' | 'UseCase' | 'Demograph
 export type SubscriptionTier = 'Basic' | 'Chrome' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 export type Industry = string;
 export type Certification = 'SmallBusiness' | 'MinorityOwned' | 'WomenOwned' | 'GreenFriendly';
+
+/**
+ * User roles for authentication and authorization
+ */
+export enum UserRole {
+  ENTREPRENEUR = 'ENTREPRENEUR',
+  INVESTOR = 'INVESTOR',
+  MENTOR = 'MENTOR',
+  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN'
+}
+
+/**
+ * User interface for authentication
+ */
+export interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  roles: UserRole[];
+  profileCompleted?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  twoFactorEnabled?: boolean;
+  lastLogin?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+  photo?: string;
+  phoneNumber?: string;
+  company?: string;
+}

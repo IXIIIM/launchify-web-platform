@@ -1,129 +1,156 @@
 // src/App.tsx
 
-import React, { Suspense, useEffect, useState } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from './components/theme/ThemeProvider';
-import { AnalyticsProvider } from './context/AnalyticsContext';
-import { AnalyticsErrorBoundary } from './components/analytics/AnalyticsErrorBoundary';
-import Layout from './components/layout/Layout';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { createTheme } from '@mui/material/styles';
+import { AuthProvider } from './context/AuthContext';
+import NotificationProvider from './context/NotificationContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import PublicRoute from './components/auth/PublicRoute';
+import ErrorBoundary from './components/error/ErrorBoundary';
 
-// Lazy-loaded route components
-const Home = React.lazy(() => import('./pages/Home'));
-const SignUp = React.lazy(() => import('./pages/auth/SignUp'));
-const Login = React.lazy(() => import('./pages/auth/Login'));
-const ProfileSetup = React.lazy(() => import('./pages/profile/ProfileSetup'));
-const Dashboard = React.lazy(() => import('./pages/dashboard/Dashboard'));
-const MatchFeed = React.lazy(() => import('./pages/matching/MatchFeed'));
-const ChatPage = React.lazy(() => import('./pages/chat/ChatPage'));
-const SubscriptionPage = React.lazy(() => import('./pages/subscription/SubscriptionPage'));
-const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
-const DevDashboard = React.lazy(() => import('./pages/dev/DevDashboard'));
+// Auth Pages
+import LoginPage from './pages/auth/LoginPage';
+import Login from './pages/auth/Login';
+import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 
-interface User {
-  id: string;
-  email: string;
-  userType: 'entrepreneur' | 'funder';
-  subscriptionTier: string;
-  profileCompleted: boolean;
-}
+// Error Pages
+import NotFoundPage from './pages/NotFoundPage';
+import UnauthorizedPage from './pages/auth/UnauthorizedPage';
+import ServerErrorPage from './pages/ServerErrorPage';
+import MaintenancePage from './pages/MaintenancePage';
+
+// Main Pages
+import DashboardPage from './pages/dashboard/DashboardPage';
+import ProfilePage from './pages/profile/ProfilePage';
+import NotificationDemoPage from './pages/demo/NotificationDemoPage';
+// Import other pages as needed
+
+// Create theme
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+});
+
+// For development/testing - set to true to show maintenance page
+const MAINTENANCE_MODE = false;
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setIsLoading(false);
-          return;
-        }
-
-        const response = await fetch('/api/auth/verify', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        } else {
-          localStorage.removeItem('token');
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-    </div>;
+  // If in maintenance mode, show maintenance page for all routes
+  if (MAINTENANCE_MODE) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <MaintenancePage 
+          estimatedCompletionTime="June 15, 2023 at 12:00 PM EST"
+          maintenanceMessage="We're upgrading our systems to bring you new features. We'll be back online soon!"
+        />
+      </ThemeProvider>
+    );
   }
 
   return (
-    <BrowserRouter>
-      <AnalyticsProvider>
-        <AnalyticsErrorBoundary>
-          <ThemeProvider>
-           <Layout>
-            <Suspense fallback={
-             <div className="flex h-screen items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-              </div>
-              }>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <ErrorBoundary>
+        <AuthProvider>
+          <NotificationProvider>
+            <Router>
               <Routes>
-              {/* Public routes */}
-              <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Home />} />
-              <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-              <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <SignUp />} />
+                {/* Public Routes */}
+                <Route 
+                  path="/login" 
+                  element={
+                    <PublicRoute>
+                      <LoginPage />
+                    </PublicRoute>
+                  } 
+                />
+                <Route 
+                  path="/register" 
+                  element={
+                    <PublicRoute>
+                      <RegisterPage />
+                    </PublicRoute>
+                  } 
+                />
+                <Route 
+                  path="/login-legacy" 
+                  element={
+                    <PublicRoute>
+                      <Login />
+                    </PublicRoute>
+                  } 
+                />
+                <Route 
+                  path="/forgot-password" 
+                  element={
+                    <PublicRoute>
+                      <ForgotPasswordPage />
+                    </PublicRoute>
+                  } 
+                />
+                <Route 
+                  path="/reset-password" 
+                  element={
+                    <PublicRoute>
+                      <ResetPasswordPage />
+                    </PublicRoute>
+                  } 
+                />
 
-              {/* Protected routes */}
-              <Route path="/profile-setup" element={
-                user ? (
-                  user.profileCompleted ? 
-                    <Navigate to="/dashboard" /> : 
-                    <ProfileSetup />
-                ) : 
-                <Navigate to="/login" />
-              } />
-              <Route path="/dashboard" element={
-                user ? <Dashboard /> : <Navigate to="/login" />
-              } />
-              <Route path="/matches" element={
-                user ? <MatchFeed /> : <Navigate to="/login" />
-              } />
-              <Route path="/chat" element={
-                user ? <ChatPage /> : <Navigate to="/login" />
-              } />
-              <Route path="/subscription" element={
-                user ? <SubscriptionPage /> : <Navigate to="/login" />
-              } />
-              <Route path="/settings" element={
-                user ? <SettingsPage /> : <Navigate to="/login" />
-              } />
-
-              {/* Development routes */}
-              {process.env.NODE_ENV === 'development' && (
-                <Route path="/dev" element={
-                  user ? <DevDashboard /> : <Navigate to="/login" />
+                {/* Protected Routes */}
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <ProtectedRoute>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route path="/demo/notifications" element={
+                  <ProtectedRoute>
+                    <NotificationDemoPage />
+                  </ProtectedRoute>
                 } />
-              )}
+                {/* Add other protected routes here */}
 
-              {/* Catch-all route */}
-              <Route path="*" element={<Navigate to="/" />} />
+                {/* Error Pages */}
+                <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                <Route path="/server-error" element={<ServerErrorPage />} />
+
+                {/* Redirect root to dashboard or login */}
+                <Route 
+                  path="/" 
+                  element={<Navigate to="/dashboard" replace />} 
+                />
+
+                {/* 404 - Not Found */}
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
-            </Suspense>
-            </Layout>
-          </ThemeProvider>
-        </AnalyticsErrorBoundary>
-      </AnalyticsProvider>
-    </BrowserRouter>
+            </Router>
+          </NotificationProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 };
 

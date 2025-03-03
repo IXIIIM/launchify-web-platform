@@ -1,342 +1,384 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Bell,
-  MessageSquare,
-  UserCheck,
-  DollarSign,
-  CheckCircle,
-  X,
-  ChevronDown,
-  MoreVertical,
-  Clock
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Badge,
+  IconButton,
+  Popover,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
+  Typography,
+  Box,
+  Divider,
+  Button,
+  CircularProgress,
+  Tabs,
+  Tab,
+  Tooltip
+} from '@mui/material';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+  Notifications as NotificationsIcon,
+  MarkEmailRead as MarkReadIcon,
+  Delete as DeleteIcon,
+  Settings as SettingsIcon,
+  Description as DocumentIcon,
+  Assignment as SignatureIcon,
+  Message as MessageIcon,
+  Verified as VerifiedIcon,
+  Payment as PaymentIcon,
+  Announcement as AnnouncementIcon
+} from '@mui/icons-material';
+import { formatDistanceToNow } from 'date-fns';
+import { useNotifications } from '../../hooks/useNotifications';
+import { Notification, NotificationType } from '../../services/NotificationService';
 
-interface Notification {
-  id: string;
-  type: 'match' | 'message' | 'payment' | 'verification' | 'system';
-  title: string;
-  body: string;
-  priority: 'low' | 'medium' | 'high';
-  read: boolean;
-  timestamp: string;
-  actions?: {
-    label: string;
-    action: string;
-  }[];
-  data?: Record<string, any>;
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
 }
 
-const NOTIFICATION_ICONS = {
-  match: UserCheck,
-  message: MessageSquare,
-  payment: DollarSign,
-  verification: CheckCircle,
-  system: Bell
+const TabPanel = (props: TabPanelProps) => {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`notification-tabpanel-${index}`}
+      aria-labelledby={`notification-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 0 }}>{children}</Box>}
+    </div>
+  );
 };
 
-const PRIORITY_COLORS = {
-  low: 'bg-gray-100 text-gray-800',
-  medium: 'bg-blue-100 text-blue-800',
-  high: 'bg-red-100 text-red-800'
+const a11yProps = (index: number) => {
+  return {
+    id: `notification-tab-${index}`,
+    'aria-controls': `notification-tabpanel-${index}`,
+  };
 };
 
-export default function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+const NotificationCenter: React.FC = () => {
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [tabValue, setTabValue] = useState(0);
+  const navigate = useNavigate();
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
+  
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    error,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    getNotifications
+  } = useNotifications({
+    autoRefresh: true,
+    refreshInterval: 30000, // 30 seconds
+    onSuccess: (message) => console.log(message),
+    onError: (error) => console.error(error)
+  });
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
+  // Filter notifications based on tab
+  const filteredNotifications = tabValue === 0 
+    ? notifications 
+    : notifications.filter(notification => !notification.isRead);
 
-  useEffect(() => {
-    // Update unread count whenever notifications change
-    setUnreadCount(notifications.filter(n => !n.read).length);
-  }, [notifications]);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch('/api/notifications');
-      if (!response.ok) throw new Error('Failed to fetch notifications');
-      const data = await response.json();
-      setNotifications(data);
-    } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to load notifications');
-    } finally {
-      setLoading(false);
-    }
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
   };
 
-  const markAsRead = async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'POST'
-      });
-      if (!response.ok) throw new Error('Failed to mark notification as read');
-
-      setNotifications(prev =>
-        prev.map(n =>
-          n.id === notificationId ? { ...n, read: true } : n
-        )
-      );
-    } catch (error) {
-      console.error('Error:', error);
-    }
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
-  const handleAction = async (notificationId: string, action: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${notificationId}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-
-      if (!response.ok) throw new Error('Failed to process action');
-
-      const result = await response.json();
-      
-      // Handle action result (e.g., navigation, state updates)
-      if (result.redirect) {
-        window.location.href = result.redirect;
-      } else if (result.refresh) {
-        fetchNotifications();
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const clearAll = async () => {
-    try {
-      const response = await fetch('/api/notifications/clear', {
-        method: 'POST'
-      });
-      if (!response.ok) throw new Error('Failed to clear notifications');
-
-      setNotifications([]);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const getFilteredNotifications = () => {
-    return notifications.filter(n => 
-      !selectedType || n.type === selectedType
-    );
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    setSelectedNotification(notification);
-    if (!notification.read) {
+    // Mark as read
+    if (!notification.isRead) {
       markAsRead(notification.id);
+    }
+    
+    // Navigate to the related entity if available
+    if (notification.link) {
+      navigate(notification.link);
+      handleClose();
     }
   };
 
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
+  };
+
+  const handleDeleteNotification = (event: React.MouseEvent, id: string) => {
+    event.stopPropagation();
+    deleteNotification(id);
+  };
+
+  const handleSettingsClick = () => {
+    navigate('/settings/notifications');
+    handleClose();
+  };
+
+  const getNotificationIcon = (type: NotificationType) => {
+    if (type.includes('document')) {
+      return <DocumentIcon />;
+    } else if (type.includes('signature')) {
+      return <SignatureIcon />;
+    } else if (type.includes('message')) {
+      return <MessageIcon />;
+    } else if (type.includes('verification')) {
+      return <VerifiedIcon />;
+    } else if (type.includes('payment')) {
+      return <PaymentIcon />;
+    } else {
+      return <AnnouncementIcon />;
+    }
+  };
+
+  const getNotificationColor = (type: NotificationType) => {
+    if (type.includes('document')) {
+      return '#2196f3'; // blue
+    } else if (type.includes('signature')) {
+      return '#4caf50'; // green
+    } else if (type.includes('message')) {
+      return '#9c27b0'; // purple
+    } else if (type.includes('verification')) {
+      return '#ff9800'; // orange
+    } else if (type.includes('payment')) {
+      return '#f44336'; // red
+    } else {
+      return '#757575'; // grey
+    }
+  };
+
+  const open = Boolean(anchorEl);
+  const id = open ? 'notification-popover' : undefined;
+
+  // Effect to refresh notifications when the popover is opened
+  useEffect(() => {
+    if (open) {
+      getNotifications();
+    }
+  }, [open, getNotifications]);
+
   return (
     <>
-      {/* Notification Bell */}
-      <div className="relative">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="relative p-2 rounded-full hover:bg-gray-100"
+      <Tooltip title="Notifications">
+        <IconButton
+          ref={notificationButtonRef}
+          aria-describedby={id}
+          onClick={handleClick}
+          size="large"
+          color="inherit"
         >
-          <Bell className="h-6 w-6" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-xs 
-                           rounded-full flex items-center justify-center">
-              {unreadCount}
-            </span>
-          )}
-        </button>
-
-        {/* Dropdown Panel */}
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg z-50">
-            <div className="p-4 border-b">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Notifications</h3>
-                <div className="flex items-center space-x-2">
-                  {/* Type Filter */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center text-sm text-gray-600">
-                      {selectedType || 'All Types'}
-                      <ChevronDown className="h-4 w-4 ml-1" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => setSelectedType(null)}>
-                        All Types
-                      </DropdownMenuItem>
-                      {Object.keys(NOTIFICATION_ICONS).map(type => (
-                        <DropdownMenuItem
-                          key={type}
-                          onClick={() => setSelectedType(type)}
-                        >
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Clear All */}
-                  <button
-                    onClick={clearAll}
-                    className="text-sm text-gray-600 hover:text-gray-900"
-                  >
-                    Clear All
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Notification List */}
-            <div className="max-h-[70vh] overflow-y-auto">
-              {loading ? (
-                <div className="flex justify-center items-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
-                </div>
-              ) : getFilteredNotifications().length > 0 ? (
-                getFilteredNotifications().map(notification => {
-                  const Icon = NOTIFICATION_ICONS[notification.type];
-                  return (
-                    <div
-                      key={notification.id}
-                      className={`p-4 border-b hover:bg-gray-50 cursor-pointer ${
-                        !notification.read ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className={`p-2 rounded-full ${
-                          PRIORITY_COLORS[notification.priority]
-                        }`}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">{notification.title}</h4>
-                              <p className="text-sm text-gray-600">{notification.body}</p>
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-xs text-gray-500">
-                                {new Date(notification.timestamp).toLocaleTimeString()}
-                              </span>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger>
-                                  <MoreVertical className="h-4 w-4 text-gray-400" />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                  <DropdownMenuItem onClick={() => markAsRead(notification.id)}>
-                                    Mark as {notification.read ? 'unread' : 'read'}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAction(notification.id, 'dismiss')}>
-                                    Dismiss
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          {notification.actions && (
-                            <div className="mt-2 space-x-2">
-                              {notification.actions.map((action, index) => (
-                                <button
-                                  key={index}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAction(notification.id, action.action);
-                                  }}
-                                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-full
-                                           hover:bg-blue-700"
-                                >
-                                  {action.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-8 text-center text-gray-500">
-                  No notifications to display
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Notification Detail Dialog */}
-      <Dialog open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
-        <DialogContent>
-          {selectedNotification && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{selectedNotification.title}</DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <p className="text-gray-600">{selectedNotification.body}</p>
-
-                {selectedNotification.data && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <pre className="text-sm">
-                      {JSON.stringify(selectedNotification.data, null, 2)}
-                    </pre>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {new Date(selectedNotification.timestamp).toLocaleString()}
-                  </div>
-                  <Badge variant={selectedNotification.priority as any}>
-                    {selectedNotification.priority}
-                  </Badge>
-                </div>
-
-                {selectedNotification.actions && (
-                  <div className="flex justify-end space-x-4">
-                    {selectedNotification.actions.map((action, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleAction(selectedNotification.id, action.action)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+          <Badge badgeContent={unreadCount} color="error">
+            <NotificationsIcon />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+      
+      <Popover
+        id={id}
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            width: 360,
+            maxHeight: 500,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }
+        }}
+      >
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center' }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange} 
+            aria-label="notification tabs"
+            sx={{ flexGrow: 1 }}
+          >
+            <Tab label="All" {...a11yProps(0)} />
+            <Tab 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  Unread
+                  {unreadCount > 0 && (
+                    <Badge 
+                      badgeContent={unreadCount} 
+                      color="error" 
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Box>
+              } 
+              {...a11yProps(1)} 
+            />
+          </Tabs>
+          
+          <Box sx={{ display: 'flex' }}>
+            {unreadCount > 0 && (
+              <Tooltip title="Mark all as read">
+                <IconButton onClick={handleMarkAllAsRead} size="small">
+                  <MarkReadIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Notification settings">
+              <IconButton onClick={handleSettingsClick} size="small">
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        
+        <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
+          <TabPanel value={tabValue} index={0}>
+            {renderNotificationList(filteredNotifications)}
+          </TabPanel>
+          <TabPanel value={tabValue} index={1}>
+            {renderNotificationList(filteredNotifications)}
+          </TabPanel>
+        </Box>
+        
+        <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>
+          <Button 
+            fullWidth 
+            onClick={() => {
+              navigate('/notifications');
+              handleClose();
+            }}
+          >
+            View All Notifications
+          </Button>
+        </Box>
+      </Popover>
     </>
   );
-}
+
+  function renderNotificationList(notificationList: Notification[]) {
+    if (loading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress size={24} />
+        </Box>
+      );
+    }
+
+    if (error) {
+      return (
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <Typography color="error">
+            Failed to load notifications
+          </Typography>
+          <Button 
+            variant="outlined" 
+            size="small" 
+            onClick={() => getNotifications()}
+            sx={{ mt: 1 }}
+          >
+            Retry
+          </Button>
+        </Box>
+      );
+    }
+
+    if (notificationList.length === 0) {
+      return (
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="textSecondary">
+            {tabValue === 0 ? 'No notifications' : 'No unread notifications'}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <List sx={{ p: 0 }}>
+        {notificationList.map((notification, index) => (
+          <React.Fragment key={notification.id}>
+            <ListItem 
+              alignItems="flex-start"
+              onClick={() => handleNotificationClick(notification)}
+              sx={{
+                backgroundColor: notification.isRead ? 'inherit' : 'action.hover',
+                '&:hover': {
+                  backgroundColor: 'action.selected',
+                },
+                cursor: 'pointer'
+              }}
+              secondaryAction={
+                <IconButton 
+                  edge="end" 
+                  aria-label="delete" 
+                  onClick={(e) => handleDeleteNotification(e, notification.id)}
+                  size="small"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              }
+            >
+              <ListItemAvatar>
+                <Avatar sx={{ bgcolor: getNotificationColor(notification.type) }}>
+                  {getNotificationIcon(notification.type)}
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText
+                primary={
+                  <Typography
+                    variant="subtitle2"
+                    color="textPrimary"
+                    sx={{ fontWeight: notification.isRead ? 'normal' : 'bold' }}
+                  >
+                    {notification.title}
+                  </Typography>
+                }
+                secondary={
+                  <>
+                    <Typography
+                      variant="body2"
+                      color="textPrimary"
+                      component="span"
+                      sx={{ display: 'block' }}
+                    >
+                      {notification.message}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="textSecondary"
+                      component="span"
+                    >
+                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                    </Typography>
+                  </>
+                }
+              />
+            </ListItem>
+            {index < notificationList.length - 1 && <Divider component="li" />}
+          </React.Fragment>
+        ))}
+      </List>
+    );
+  }
+};
+
+export default NotificationCenter;

@@ -5,7 +5,7 @@ import { config } from '../config/environment';
 
 const prisma = new PrismaClient();
 
-interface AuthRequest extends Request {
+export interface AuthRequest extends Request {
   user?: any;
 }
 
@@ -68,6 +68,9 @@ export const authenticateToken = async (
     next(error);
   }
 };
+
+// Add alias for authenticateToken for consistency
+export const authMiddleware = authenticateToken;
 
 export const requireRole = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
