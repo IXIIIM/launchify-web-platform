@@ -1,0 +1,1 @@
+/* Content from swipe-interface artifact */

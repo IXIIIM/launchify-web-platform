@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Launchify</title>
+    
+    <!-- Resource Hints - DNS Prefetch -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="dns-prefetch" href="https://api.launchify.com" />
+    
+    <!-- Resource Hints - Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://api.launchify.com" crossorigin />
+    
+    <!-- Resource Hints - Preload Critical CSS -->
+    <link rel="preload" href="/static/css/main.chunk.css" as="style" />
+    
+    <!-- Resource Hints - Preload Critical Fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" as="style" crossorigin />
+    
+    <!-- Resource Hints - Preload Critical Images -->
+    <link rel="preload" href="/logo192.png" as="image" type="image/png" />
+    
+    <!-- Actual stylesheet links -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" />
+    
+    <!-- PWA related meta tags -->
+    <meta name="theme-color" content="#1976d2" />
+    <meta name="description" content="Launchify Web Platform - Connect entrepreneurs and funders" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Inline critical rendering path script -->
+    <script>
+      // Add a class to the body when the page starts loading
+      document.body.classList.add('loading');
+      
+      // Remove the class when the page is fully loaded
+      window.addEventListener('load', function() {
+        document.body.classList.remove('loading');
+      });
+      
+      // Detect if JavaScript is enabled
+      document.documentElement.classList.remove('no-js');
+      document.documentElement.classList.add('js');
+    </script>
+  </body>
+</html>
