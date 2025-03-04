@@ -1,0 +1,247 @@
+// src/server/templates/emails/base.mjml
+const baseTemplate = `
+<mjml>
+  <mj-head>
+    <mj-title>{{title}}</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
+    <mj-attributes>
+      <mj-all font-family="Inter, Arial, sans-serif" />
+      <mj-text font-size="14px" color="#333333" line-height="24px" />
+      <mj-button background-color="#2563EB" border-radius="6px" />
+    </mj-attributes>
+    <mj-style>
+      .header { background-color: #F8FAFC; }
+      .footer { background-color: #F1F5F9; }
+      .link { color: #2563EB; }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#ffffff">
+    <!-- Header -->
+    <mj-section css-class="header" padding="20px">
+      <mj-column>
+        <mj-image width="120px" src="{{logoUrl}}" alt="Launchify" align="center" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Content -->
+    {{content}}
+
+    <!-- Footer -->
+    <mj-section css-class="footer" padding="20px">
+      <mj-column>
+        <mj-text align="center" color="#64748B" font-size="12px">
+          © {{year}} Launchify. All rights reserved.
+        </mj-text>
+        <mj-text align="center" color="#64748B" font-size="12px">
+          <a href="{{preferencesUrl}}" class="link">Notification Preferences</a> |
+          <a href="{{unsubscribeUrl}}" class="link">Unsubscribe</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
+`;
+
+// src/server/templates/emails/match.mjml
+const matchTemplate = `
+<mj-section padding="20px">
+  <mj-column>
+    <mj-text font-size="24px" font-weight="600" align="center">
+      New Match!
+    </mj-text>
+    <mj-image width="150px" src="{{matchProfileImage}}" alt="Match Profile" border-radius="100px" />
+    <mj-text align="center" font-size="18px" font-weight="500" padding-top="20px">
+      {{matchName}}
+    </mj-text>
+    <mj-text align="center" color="#64748B">
+      {{matchDescription}}
+    </mj-text>
+    <mj-text align="center" font-size="16px" font-weight="500" color="#2563EB">
+      {{compatibilityScore}}% Match
+    </mj-text>
+    <mj-button href="{{matchProfileUrl}}">
+      View Profile
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+<mj-section padding="0 20px">
+  <mj-column>
+    <mj-text font-weight="500">Why you might match:</mj-text>
+    <mj-text>
+      <ul style="padding-left: 20px;">
+        {{#each matchReasons}}
+          <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </mj-text>
+  </mj-column>
+</mj-section>
+`;
+
+// src/server/templates/emails/message.mjml
+const messageTemplate = `
+<mj-section padding="20px">
+  <mj-column>
+    <mj-text font-size="24px" font-weight="600" align="center">
+      New Message
+    </mj-text>
+    <mj-text align="center" padding-top="20px">
+      You have a new message from {{senderName}}
+    </mj-text>
+    <mj-text font-style="italic" color="#64748B" padding="20px" background-color="#F8FAFC">
+      "{{messagePreview}}"
+    </mj-text>
+    <mj-button href="{{conversationUrl}}">
+      Reply to Message
+    </mj-button>
+  </mj-column>
+</mj-section>
+`;
+
+// src/server/templates/emails/escrow.mjml
+const escrowTemplate = `
+<mj-section padding="20px">
+  <mj-column>
+    <mj-text font-size="24px" font-weight="600" align="center">
+      {{title}}
+    </mj-text>
+    <mj-text align="center">
+      {{description}}
+    </mj-text>
+    <mj-text align="center" font-size="20px" font-weight="500" color="#2563EB">
+      ${{amount}}
+    </mj-text>
+
+    {{#if milestone}}
+    <mj-table>
+      <tr style="border-bottom: 1px solid #E2E8F0;">
+        <td style="padding: 10px 0;">Milestone</td>
+        <td style="padding: 10px 0;">{{milestone.name}}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E2E8F0;">
+        <td style="padding: 10px 0;">Due Date</td>
+        <td style="padding: 10px 0;">{{milestone.dueDate}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 0;">Amount</td>
+        <td style="padding: 10px 0;">${{milestone.amount}}</td>
+      </tr>
+    </mj-table>
+    {{/if}}
+
+    <mj-button href="{{actionUrl}}">
+      {{actionText}}
+    </mj-button>
+  </mj-column>
+</mj-section>
+`;
+
+// src/server/templates/emails/verification.mjml
+const verificationTemplate = `
+<mj-section padding="20px">
+  <mj-column>
+    <mj-text font-size="24px" font-weight="600" align="center">
+      {{title}}
+    </mj-text>
+    <mj-text align="center">
+      {{description}}
+    </mj-text>
+
+    {{#if status}}
+    <mj-text align="center" font-size="16px" font-weight="500" 
+      color="{{#if approved}}#16A34A{{else}}#DC2626{{/if}}">
+      {{status}}
+    </mj-text>
+    {{/if}}
+
+    {{#if reviewNotes}}
+    <mj-text padding="20px" background-color="#F8FAFC">
+      <strong>Review Notes:</strong><br/>
+      {{reviewNotes}}
+    </mj-text>
+    {{/if}}
+
+    <mj-button href="{{actionUrl}}">
+      {{actionText}}
+    </mj-button>
+  </mj-column>
+</mj-section>
+`;
+
+// src/server/templates/emails/reminder.mjml
+const reminderTemplate = `
+<mj-section padding="20px">
+  <mj-column>
+    <mj-text font-size="24px" font-weight="600" align="center">
+      {{title}}
+    </mj-text>
+    <mj-text align="center">
+      {{description}}
+    </mj-text>
+    
+    {{#if items}}
+    <mj-table>
+      {{#each items}}
+      <tr style="border-bottom: 1px solid #E2E8F0;">
+        <td style="padding: 10px 0;">
+          <strong>{{this.title}}</strong><br/>
+          <span style="color: #64748B;">{{this.description}}</span>
+        </td>
+        <td style="padding: 10px 0; text-align: right;">
+          {{this.status}}
+        </td>
+      </tr>
+      {{/each}}
+    </mj-table>
+    {{/if}}
+
+    <mj-button href="{{actionUrl}}">
+      {{actionText}}
+    </mj-button>
+  </mj-column>
+</mj-section>
+`;
+
+// Export all templates
+export const emailTemplates = {
+  base: baseTemplate,
+  match: matchTemplate,
+  message: messageTemplate,
+  escrow: escrowTemplate,
+  verification: verificationTemplate,
+  reminder: reminderTemplate
+};
+
+// Template processor
+import mjml2html from 'mjml';
+import Handlebars from 'handlebars';
+
+export function processTemplate(
+  templateName: keyof typeof emailTemplates,
+  data: Record<string, any>
+): string {
+  // Compile the specific template
+  const template = Handlebars.compile(emailTemplates[templateName]);
+  const content = template(data);
+
+  // Insert into base template
+  const baseTemplateCompiled = Handlebars.compile(emailTemplates.base);
+  const fullMjml = baseTemplateCompiled({
+    ...data,
+    content,
+    year: new Date().getFullYear(),
+    logoUrl: process.env.APP_URL + '/images/logo.png',
+    preferencesUrl: process.env.APP_URL + '/settings/notifications',
+    unsubscribeUrl: process.env.APP_URL + '/settings/notifications/unsubscribe'
+  });
+
+  // Convert MJML to HTML
+  const { html } = mjml2html(fullMjml, {
+    keepComments: false,
+    beautify: false,
+    minify: true
+  });
+
+  return html;
+}

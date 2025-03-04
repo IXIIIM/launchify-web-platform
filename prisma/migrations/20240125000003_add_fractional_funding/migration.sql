@@ -1,0 +1,3 @@
+-- CreateTable
+CREATE TABLE "FunderTeam" (
+...)

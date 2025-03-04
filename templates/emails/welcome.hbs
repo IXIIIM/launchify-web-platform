@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Launchify</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background-color: #4a86e8;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+    .button {
+      display: inline-block;
+      background-color: #4a86e8;
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+    .features {
+      margin: 20px 0;
+    }
+    .feature {
+      margin-bottom: 15px;
+    }
+    .feature-title {
+      font-weight: bold;
+      color: #4a86e8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to Launchify!</h1>
+    </div>
+    <div class="content">
+      <p>Hello {{name}},</p>
+      
+      <p>Thank you for joining Launchify! We're excited to have you on board.</p>
+      
+      <p>Launchify is the premier platform connecting entrepreneurs with investors. Here's what you can do:</p>
+      
+      <div class="features">
+        <div class="feature">
+          <div class="feature-title">Find Perfect Matches</div>
+          <div>Our advanced matching algorithm connects you with the ideal partners based on your preferences and goals.</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-title">Secure Transactions</div>
+          <div>Our escrow system ensures safe and transparent financial transactions between parties.</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-title">Legal Document Generation</div>
+          <div>Generate and sign legal documents like NDAs and contracts with ease.</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-title">Verification System</div>
+          <div>Build trust with our multi-level verification process.</div>
+        </div>
+      </div>
+      
+      <p>
+        <a href="{{loginUrl}}" class="button">Log In to Your Account</a>
+      </p>
+      
+      <p>If you have any questions, feel free to contact our support team at support@launchify.com.</p>
+    </div>
+    <div class="footer">
+      <p>© 2023 Launchify. All rights reserved.</p>
+      <p>
+        <a href="{{appUrl}}/settings/notifications">Manage notification settings</a> |
+        <a href="{{appUrl}}/privacy-policy">Privacy Policy</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html> 

@@ -1,0 +1,1 @@
+/* Content from email-templates artifact */
